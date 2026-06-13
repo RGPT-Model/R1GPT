@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGPT Model — Building Language Models From First Principles</title>
+<meta name="description" content="RGPT Model is an independent AI research and engineering initiative focused on understanding, building, and evolving GPT-style architectures from first principles.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #0a0a0a;
+    --off-black: #111111;
+    --dark: #1a1a1a;
+    --mid: #2e2e2e;
+    --border: #262626;
+    --muted: #4a4a4a;
+    --subtle: #888888;
+    --light-muted: #b0b0b0;
+    --light: #e8e8e8;
+    --off-white: #f5f4f0;
+    --white: #ffffff;
+    --accent: #e8e4d9;
+    --serif: 'Instrument Serif', Georgia, serif;
+    --mono: 'DM Mono', 'Courier New', monospace;
+    --sans: 'Geist', system-ui, sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--off-white);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ---- NOISE TEXTURE ---- */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.35;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 56px;
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    color: var(--off-white);
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .nav-logo span { color: var(--subtle); }
+
+  .nav-links {
+    display: flex;
+    gap: 36px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--subtle);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--off-white); }
+
+  .nav-cta {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--black) !important;
+    background: var(--off-white);
+    padding: 7px 16px;
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: background 0.2s, color 0.2s !important;
+  }
+
+  .nav-cta:hover { background: var(--accent) !important; color: var(--black) !important; }
+
+  /* ---- HERO ---- */
+  #hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+    padding-top: 56px;
+  }
+
+  .hero-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 64px 80px 48px;
+    border-right: 1px solid var(--border);
+  }
+
+  .hero-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--subtle);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hero-label::before {
+    content: '';
+    display: block;
+    width: 24px;
+    height: 1px;
+    background: var(--muted);
+  }
+
+  .hero-h1 {
+    font-family: var(--serif);
+    font-size: clamp(42px, 5vw, 64px);
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1.1;
+    color: var(--off-white);
+    letter-spacing: -0.02em;
+    margin-bottom: 32px;
+  }
+
+  .hero-h1 em {
+    font-style: italic;
+    color: var(--light-muted);
+  }
+
+  .hero-desc {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 300;
+    color: var(--subtle);
+    line-height: 1.75;
+    max-width: 480px;
+    margin-bottom: 48px;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--black);
+    background: var(--off-white);
+    padding: 12px 28px;
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: background 0.2s;
+    border: 1px solid transparent;
+  }
+
+  .btn-primary:hover { background: var(--accent); }
+
+  .btn-secondary {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--subtle);
+    background: transparent;
+    padding: 12px 28px;
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  .btn-secondary:hover { color: var(--off-white); border-color: var(--muted); }
+
+  .hero-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Architecture SVG diagram */
+  .arch-diagram {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .hero-meta {
+    position: absolute;
+    bottom: 32px;
+    right: 48px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  /* ---- SECTION LAYOUT ---- */
+  section { border-bottom: 1px solid var(--border); }
+
+  .section-header {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-number {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    padding: 28px 32px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+  }
+
+  .section-title-block {
+    padding: 28px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--off-white);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .section-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* ---- MODELS SECTION ---- */
+  #models .model-grid {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+
+  .model-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 48px 32px;
+  }
+
+  .model-sidebar h2 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--off-white);
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .model-sidebar p {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    line-height: 1.7;
+  }
+
+  .models-list {
+    padding: 0;
+  }
+
+  .model-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 160px 140px;
+    align-items: center;
+    padding: 32px 48px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+
+  .model-row:hover { background: rgba(255,255,255,0.02); }
+  .model-row:last-child { border-bottom: none; }
+
+  .model-id {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--off-white);
+    letter-spacing: -0.01em;
+  }
+
+  .model-desc {
+    padding: 0 32px;
+  }
+
+  .model-desc strong {
+    display: block;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--off-white);
+    margin-bottom: 4px;
+  }
+
+  .model-desc span {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+  }
+
+  .model-tech {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+    letter-spacing: 0.04em;
+  }
+
+  .model-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border: 1px solid;
+    text-align: center;
+    width: fit-content;
+  }
+
+  .badge-live { border-color: #4a4a4a; color: var(--off-white); background: rgba(255,255,255,0.04); }
+  .badge-dev { border-color: var(--border); color: var(--muted); }
+  .badge-planned { border-color: var(--border); color: var(--muted); opacity: 0.5; }
+
+  /* ---- ARCHITECTURE SECTION ---- */
+  #architecture .arch-content {
+    display: grid;
+    grid-template-columns: 200px 1fr 1fr;
+  }
+
+  .arch-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 48px 32px;
+  }
+
+  .arch-sidebar h2 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--off-white);
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+
+  .arch-sidebar p {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    line-height: 1.7;
+  }
+
+  .arch-flow {
+    padding: 48px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    width: 100%;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: default;
+    transition: all 0.2s;
+  }
+
+  .flow-step:last-child { border-bottom: none; }
+
+  .flow-step:hover .flow-name { color: var(--off-white); }
+  .flow-step:hover .flow-index { color: var(--light-muted); }
+
+  .flow-index {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    width: 28px;
+    flex-shrink: 0;
+    transition: color 0.2s;
+  }
+
+  .flow-name {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--subtle);
+    transition: color 0.2s;
+    flex: 1;
+  }
+
+  .flow-desc {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-align: right;
+  }
+
+  .arch-annotations {
+    padding: 48px;
+  }
+
+  .annotation {
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .annotation:last-child { border-bottom: none; }
+
+  .annotation-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .annotation-content {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    line-height: 1.75;
+  }
+
+  .annotation-content code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--light-muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 6px;
+  }
+
+  /* ---- R1GPT SHOWCASE ---- */
+  #r1gpt .r1-content {
+    display: grid;
+    grid-template-columns: 200px 1fr 360px;
+  }
+
+  .r1-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 48px 32px;
+  }
+
+  .r1-sidebar h2 {
+    font-family: var(--serif);
+    font-size: 48px;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--off-white);
+    line-height: 1;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .r1-sidebar .tagline {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1.6;
+  }
+
+  .r1-main {
+    padding: 48px;
+    border-right: 1px solid var(--border);
+  }
+
+  .component-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 48px;
+  }
+
+  .component-item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: all 0.2s;
+  }
+
+  .component-item:hover .comp-name { color: var(--off-white); }
+
+  .comp-idx {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--border);
+    width: 20px;
+    flex-shrink: 0;
+    letter-spacing: 0.06em;
+  }
+
+  .comp-name {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--light-muted);
+    flex: 1;
+    transition: color 0.2s;
+  }
+
+  .comp-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    letter-spacing: 0.04em;
+  }
+
+  .r1-stats {
+    padding: 48px 32px;
+  }
+
+  .stat-block {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-block:last-child { border-bottom: none; }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--off-white);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-desc {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ---- DEMO SECTION ---- */
+  #demo .demo-content {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+
+  .demo-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 48px 32px;
+  }
+
+  .demo-sidebar h2 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--off-white);
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+
+  .demo-sidebar p {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    line-height: 1.7;
+  }
+
+  .demo-notice {
+    margin-top: 24px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .demo-notice p {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    line-height: 1.7;
+  }
+
+  .demo-interface {
+    padding: 48px;
+  }
+
+  .demo-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .demo-input-row {
+    display: flex;
+    gap: 0;
+    margin-bottom: 32px;
+    border: 1px solid var(--border);
+  }
+
+  .demo-input {
+    flex: 1;
+    background: rgba(255,255,255,0.02);
+    border: none;
+    outline: none;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--off-white);
+    letter-spacing: 0.02em;
+  }
+
+  .demo-input::placeholder { color: var(--muted); }
+
+  .demo-run {
+    background: var(--off-white);
+    border: none;
+    outline: none;
+    padding: 16px 28px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--black);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+
+  .demo-run:hover { background: var(--accent); }
+
+  .demo-controls {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 32px;
+  }
+
+  .demo-control {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .control-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .control-input {
+    background: transparent;
+    border: 1px solid var(--border);
+    outline: none;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--off-white);
+    width: 80px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .demo-output-container {
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.01);
+  }
+
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .output-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .output-status {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  .output-body {
+    padding: 24px;
+    min-height: 160px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--light-muted);
+    line-height: 1.8;
+    letter-spacing: 0.02em;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .output-placeholder {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .cursor { 
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--off-white);
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ---- RESEARCH NOTES ---- */
+  #research .research-content {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+
+  .research-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 48px 32px;
+  }
+
+  .research-sidebar h2 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--off-white);
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+
+  .research-sidebar p {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    line-height: 1.7;
+  }
+
+  .notes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-left: none;
+  }
+
+  .note-item {
+    padding: 36px 48px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: block;
+  }
+
+  .note-item:nth-child(even) { border-right: none; }
+  .note-item:hover { background: rgba(255,255,255,0.02); }
+
+  .note-idx {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+
+  .note-title {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--off-white);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  .note-desc {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    line-height: 1.65;
+    margin-bottom: 20px;
+  }
+
+  .note-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    display: inline-block;
+  }
+
+  /* ---- TIMELINE ---- */
+  #timeline .timeline-content {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+
+  .timeline-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 48px 32px;
+  }
+
+  .timeline-sidebar h2 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--off-white);
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+
+  .timeline-sidebar p {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    line-height: 1.7;
+  }
+
+  .timeline-main {
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .tl-item {
+    display: grid;
+    grid-template-columns: 48px 1fr 200px;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: all 0.2s;
+  }
+
+  .tl-item:last-child { border-bottom: none; }
+  .tl-item:hover .tl-name { color: var(--off-white); }
+  .tl-item.completed .tl-dot { background: var(--off-white); }
+  .tl-item.active .tl-dot { background: var(--off-white); box-shadow: 0 0 0 3px rgba(255,255,255,0.1); }
+  .tl-item.future .tl-dot { background: transparent; border: 1px solid var(--border); }
+
+  .tl-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .tl-name {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--subtle);
+    transition: color 0.2s;
+  }
+
+  .tl-item.completed .tl-name { color: var(--light-muted); }
+
+  .tl-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    letter-spacing: 0.04em;
+  }
+
+  /* ---- OPEN SOURCE ---- */
+  #opensource .os-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .os-block {
+    padding: 64px 48px;
+    border-right: 1px solid var(--border);
+  }
+
+  .os-block:last-child { border-right: none; }
+
+  .os-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .os-block h2 {
+    font-family: var(--serif);
+    font-size: 36px;
+    font-weight: 400;
+    color: var(--off-white);
+    line-height: 1.15;
+    margin-bottom: 20px;
+    letter-spacing: -0.01em;
+  }
+
+  .os-block p {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--subtle);
+    line-height: 1.75;
+    margin-bottom: 36px;
+    max-width: 400px;
+  }
+
+  .os-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .os-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .os-link:hover .os-link-name { color: var(--off-white); }
+  .os-link:hover .os-link-arrow { color: var(--light-muted); transform: translate(4px, -4px); }
+
+  .os-link-name {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--subtle);
+    transition: color 0.2s;
+  }
+
+  .os-link-arrow {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--border);
+    transition: all 0.2s;
+  }
+
+  /* ---- FOOTER ---- */
+  footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    padding: 48px;
+    gap: 32px;
+    border-top: none;
+  }
+
+  .footer-brand {}
+
+  .footer-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--off-white);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .footer-tagline {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 220px;
+  }
+
+  .footer-col h4 {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .footer-col ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .footer-col a {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--subtle);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-col a:hover { color: var(--off-white); }
+
+  .footer-bottom {
+    padding: 24px 48px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-copy {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .footer-version {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  /* ---- ANIMATIONS ---- */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 900px) {
+    nav { padding: 0 24px; }
+    .nav-links { gap: 20px; }
+    
+    #hero { grid-template-columns: 1fr; min-height: auto; }
+    .hero-left { padding: 60px 24px 48px; border-right: none; border-bottom: 1px solid var(--border); }
+    .hero-right { padding: 48px 24px; min-height: 300px; }
+    .hero-meta { display: none; }
+
+    .section-header { grid-template-columns: 80px 1fr; }
+    .section-number { padding: 20px 16px; }
+    .section-title-block { padding: 20px 24px; }
+
+    #models .model-grid { grid-template-columns: 1fr; }
+    .model-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
+    .model-row { grid-template-columns: 100px 1fr; gap: 16px; padding: 24px; }
+    .model-tech, .model-badge { display: none; }
+
+    #architecture .arch-content { grid-template-columns: 1fr; }
+    .arch-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
+    .arch-flow { padding: 32px 24px; border-right: none; border-bottom: 1px solid var(--border); }
+    .arch-annotations { padding: 32px 24px; }
+
+    #r1gpt .r1-content { grid-template-columns: 1fr; }
+    .r1-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
+    .r1-main { border-right: none; padding: 32px 24px; }
+    .r1-stats { padding: 32px 24px; }
+
+    #demo .demo-content { grid-template-columns: 1fr; }
+    .demo-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
+    .demo-interface { padding: 32px 24px; }
+
+    #research .research-content { grid-template-columns: 1fr; }
+    .research-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
+    .notes-grid { grid-template-columns: 1fr; }
+    .note-item { border-right: none !important; padding: 28px 24px; }
+
+    #timeline .timeline-content { grid-template-columns: 1fr; }
+    .timeline-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
+    .timeline-main { padding: 32px 24px; }
+    .tl-item { grid-template-columns: 32px 1fr; }
+    .tl-note { display: none; }
+
+    #opensource .os-content { grid-template-columns: 1fr; }
+    .os-block { border-right: none; padding: 48px 24px; }
+    .os-block + .os-block { border-top: 1px solid var(--border); }
+
+    footer { grid-template-columns: 1fr 1fr; padding: 32px 24px; }
+    .footer-bottom { padding: 20px 24px; flex-direction: column; gap: 8px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">RGPT<span>/</span>Model</a>
+  <ul class="nav-links">
+    <li><a href="#models">Models</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#research">Research</a></li>
+    <li><a href="#demo">Demo</a></li>
+    <li><a href="#opensource" class="nav-cta">GitHub ↗</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-left">
+    <div class="hero-label">Independent AI Research · Est. 2024</div>
+    <h1 class="hero-h1">Building Language Models<br><em>From First Principles.</em></h1>
+    <p class="hero-desc">RGPT Model explores the inner workings of Transformers, Attention, and GPT-style architectures — built from scratch in PyTorch, documented openly, and evolved through experimentation.</p>
+    <div class="hero-actions">
+      <a href="#models" class="btn-primary">View Models</a>
+      <a href="#research" class="btn-secondary">View Research</a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <svg class="arch-diagram" viewBox="0 0 320 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Grid lines -->
+      <line x1="0" y1="0" x2="320" y2="0" stroke="#1e1e1e" stroke-width="1"/>
+      <line x1="0" y1="480" x2="320" y2="480" stroke="#1e1e1e" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="480" stroke="#1e1e1e" stroke-width="1"/>
+      <line x1="320" y1="0" x2="320" y2="480" stroke="#1e1e1e" stroke-width="1"/>
+
+      <!-- Vertical spine -->
+      <line x1="160" y1="24" x2="160" y2="456" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,4"/>
+
+      <!-- Main flow boxes -->
+      <rect x="80" y="24" width="160" height="36" fill="none" stroke="#2e2e2e" stroke-width="1"/>
+      <text x="160" y="47" fill="#6a6a6a" font-family="DM Mono, monospace" font-size="11" text-anchor="middle" letter-spacing="1">INPUT TEXT</text>
+
+      <line x1="160" y1="60" x2="160" y2="80" stroke="#2a2a2a" stroke-width="1"/>
+      <polygon points="156,76 160,84 164,76" fill="#2a2a2a"/>
+
+      <rect x="60" y="80" width="200" height="36" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="1"/>
+      <text x="160" y="103" fill="#7a7a7a" font-family="DM Mono, monospace" font-size="11" text-anchor="middle" letter-spacing="1">TOKENIZER</text>
+
+      <line x1="160" y1="116" x2="160" y2="136" stroke="#2a2a2a" stroke-width="1"/>
+      <polygon points="156,132 160,140 164,132" fill="#2a2a2a"/>
+
+      <rect x="60" y="136" width="200" height="36" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="1"/>
+      <text x="160" y="159" fill="#7a7a7a" font-family="DM Mono, monospace" font-size="11" text-anchor="middle" letter-spacing="1">EMBEDDINGS</text>
+
+      <line x1="160" y1="172" x2="160" y2="192" stroke="#2a2a2a" stroke-width="1"/>
+      <polygon points="156,188 160,196 164,188" fill="#2a2a2a"/>
+
+      <!-- Transformer block (larger, highlighted) -->
+      <rect x="32" y="192" width="256" height="120" fill="rgba(255,255,255,0.015)" stroke="#3a3a3a" stroke-width="1"/>
+      <text x="48" y="210" fill="#4a4a4a" font-family="DM Mono, monospace" font-size="9" letter-spacing="2">TRANSFORMER BLOCK × N</text>
+
+      <rect x="48" y="218" width="104" height="32" fill="rgba(255,255,255,0.03)" stroke="#2e2e2e" stroke-width="1"/>
+      <text x="100" y="238" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">MULTI-HEAD</text>
+      <text x="100" y="250" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">ATTENTION</text>
+
+      <rect x="168" y="218" width="104" height="32" fill="rgba(255,255,255,0.03)" stroke="#2e2e2e" stroke-width="1"/>
+      <text x="220" y="238" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">FEED FORWARD</text>
+      <text x="220" y="250" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">NETWORK</text>
+
+      <!-- Layer norm labels -->
+      <text x="48" y="276" fill="#4a4a4a" font-family="DM Mono, monospace" font-size="9" letter-spacing="1">+ LayerNorm  + Residual</text>
+
+      <rect x="48" y="282" width="224" height="20" fill="rgba(255,255,255,0.02)" stroke="#2a2a2a" stroke-width="1"/>
+      <text x="160" y="296" fill="#555" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="2">LAYER NORMALIZATION</text>
+
+      <line x1="160" y1="312" x2="160" y2="332" stroke="#2a2a2a" stroke-width="1"/>
+      <polygon points="156,328 160,336 164,328" fill="#2a2a2a"/>
+
+      <rect x="60" y="332" width="200" height="36" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="1"/>
+      <text x="160" y="350" fill="#7a7a7a" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">LANGUAGE MODEL HEAD</text>
+      <text x="160" y="362" fill="#4a4a4a" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">Linear + Softmax</text>
+
+      <line x1="160" y1="368" x2="160" y2="388" stroke="#2a2a2a" stroke-width="1"/>
+      <polygon points="156,384 160,392 164,384" fill="#2a2a2a"/>
+
+      <rect x="80" y="392" width="160" height="36" fill="none" stroke="#2e2e2e" stroke-width="1"/>
+      <text x="160" y="410" fill="#aaa" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">NEXT TOKEN</text>
+      <text x="160" y="422" fill="#aaa" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">PREDICTION</text>
+
+      <!-- Side annotations -->
+      <text x="12" y="248" fill="#333" font-family="DM Mono, monospace" font-size="8" letter-spacing="1" transform="rotate(-90,12,248)">ATTENTION</text>
+      <line x1="20" y1="218" x2="20" y2="312" stroke="#222" stroke-width="1"/>
+
+      <text x="308" y="248" fill="#333" font-family="DM Mono, monospace" font-size="8" text-anchor="middle" letter-spacing="1" transform="rotate(90,308,248)">RESIDUAL</text>
+      <line x1="300" y1="218" x2="300" y2="312" stroke="#222" stroke-width="1"/>
+    </svg>
+    <div class="hero-meta">
+      R1GPT · v0.1<br>
+      PyTorch · From Scratch<br>
+      Character-level · Open Source
+    </div>
+  </div>
+</section>
+
+<!-- MODELS -->
+<section id="models">
+  <div class="section-header">
+    <div class="section-number">§01</div>
+    <div class="section-title-block">
+      <span class="section-title">Model Family</span>
+      <span class="section-status">4 Models · 1 Released</span>
+    </div>
+  </div>
+  <div class="model-grid">
+    <div class="model-sidebar">
+      <h2>RGPT<br>Model<br>Family</h2>
+      <p>A progressive research roadmap — each model builds understanding from the previous, layer by layer.</p>
+    </div>
+    <div class="models-list">
+      <div class="model-row fade-in">
+        <div class="model-id">R1GPT</div>
+        <div class="model-desc">
+          <strong>Character-level Transformer</strong>
+          <span>Built from scratch in PyTorch — the foundation of the RGPT family. Trained on Shakespeare corpus. Demonstrates full GPT pipeline end-to-end.</span>
+        </div>
+        <div class="model-tech">
+          PyTorch<br>
+          char-level BPE<br>
+          ~10M params
+        </div>
+        <div><span class="model-badge badge-live">Released</span></div>
+      </div>
+      <div class="model-row fade-in">
+        <div class="model-id">R2GPT</div>
+        <div class="model-desc">
+          <strong>Subword Tokenization + Improved Architecture</strong>
+          <span>Scaling tokenization to BPE subwords, extended context windows, and refined training procedures.</span>
+        </div>
+        <div class="model-tech">
+          BPE Tokenizer<br>
+          Extended context<br>
+          ~50M params
+        </div>
+        <div><span class="model-badge badge-dev">In Development</span></div>
+      </div>
+      <div class="model-row fade-in">
+        <div class="model-id">R3GPT</div>
+        <div class="model-desc">
+          <strong>Instruction Tuning + RLHF Experiments</strong>
+          <span>Research into alignment techniques, instruction following, and reward modeling applied to the RGPT architecture.</span>
+        </div>
+        <div class="model-tech">
+          RLHF Research<br>
+          Instruction Tuning<br>
+          ~200M params
+        </div>
+        <div><span class="model-badge badge-planned">Planned</span></div>
+      </div>
+      <div class="model-row fade-in">
+        <div class="model-id">R∞</div>
+        <div class="model-desc">
+          <strong>Future Foundation Models</strong>
+          <span>Long-horizon research into scaling laws, efficiency, sparse architectures, and novel training paradigms beyond GPT.</span>
+        </div>
+        <div class="model-tech">
+          Research Phase<br>
+          TBD
+        </div>
+        <div><span class="model-badge badge-planned">Future</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-header">
+    <div class="section-number">§02</div>
+    <div class="section-title-block">
+      <span class="section-title">Architecture</span>
+      <span class="section-status">GPT Forward Pass</span>
+    </div>
+  </div>
+  <div class="arch-content">
+    <div class="arch-sidebar">
+      <h2>How GPT<br>Works</h2>
+      <p>A systems-level walkthrough of the full transformer forward pass — from raw text to next-token prediction.</p>
+    </div>
+    <div class="arch-flow">
+      <div class="flow-step fade-in">
+        <span class="flow-index">01</span>
+        <span class="flow-name">Input Text</span>
+        <span class="flow-desc">raw string</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">02</span>
+        <span class="flow-name">Tokenizer</span>
+        <span class="flow-desc">char → integer</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">03</span>
+        <span class="flow-name">Token IDs</span>
+        <span class="flow-desc">sequence of ints</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">04</span>
+        <span class="flow-name">Embeddings</span>
+        <span class="flow-desc">token + positional</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">05</span>
+        <span class="flow-name">Transformer Blocks × N</span>
+        <span class="flow-desc">stacked layers</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">06</span>
+        <span class="flow-name">Multi-Head Attention</span>
+        <span class="flow-desc">Q · Kᵀ / √d</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">07</span>
+        <span class="flow-name">Feed Forward Network</span>
+        <span class="flow-desc">2× linear + ReLU</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">08</span>
+        <span class="flow-name">Layer Normalization</span>
+        <span class="flow-desc">pre-norm</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">09</span>
+        <span class="flow-name">LM Head</span>
+        <span class="flow-desc">linear projection</span>
+      </div>
+      <div class="flow-step fade-in">
+        <span class="flow-index">10</span>
+        <span class="flow-name">Next Token Prediction</span>
+        <span class="flow-desc">softmax → sample</span>
+      </div>
+    </div>
+    <div class="arch-annotations">
+      <div class="annotation fade-in">
+        <div class="annotation-label">Attention Mechanism</div>
+        <div class="annotation-content">
+          Attention(Q,K,V) = softmax(QKᵀ/√d_k)V. The scaled dot-product computes compatibility between every query and key pair. Masking ensures tokens only attend to previous positions — enabling <code>autoregressive</code> generation.
+        </div>
+      </div>
+      <div class="annotation fade-in">
+        <div class="annotation-label">Residual Connections</div>
+        <div class="annotation-content">
+          Each transformer block uses residual skip connections: <code>x = x + sublayer(x)</code>. This allows gradients to flow directly through the network depth, solving vanishing gradient problems in deep stacks.
+        </div>
+      </div>
+      <div class="annotation fade-in">
+        <div class="annotation-label">Autoregressive Generation</div>
+        <div class="annotation-content">
+          At inference, the model generates one token at a time. Each generated token is appended to the context and fed back into the model. Temperature controls the <code>sampling distribution</code> — lower = deterministic, higher = creative.
+        </div>
+      </div>
+      <div class="annotation fade-in">
+        <div class="annotation-label">Training Objective</div>
+        <div class="annotation-content">
+          Cross-entropy loss over next-token predictions. Given sequence x₁, x₂, ..., xₙ, the model maximizes <code>P(xₜ | x₁...xₜ₋₁)</code> across all positions simultaneously via teacher forcing.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- R1GPT SHOWCASE -->
+<section id="r1gpt">
+  <div class="section-header">
+    <div class="section-number">§03</div>
+    <div class="section-title-block">
+      <span class="section-title">R1GPT</span>
+      <span class="section-status">Released · Open Source</span>
+    </div>
+  </div>
+  <div class="r1-content">
+    <div class="r1-sidebar">
+      <h2>R1GPT</h2>
+      <div class="tagline">
+        BUILT FROM<br>FIRST PRINCIPLES<br><br>
+        PYTORCH<br>
+        NO EXTERNAL LIBS<br>
+        CHAR-LEVEL
+      </div>
+    </div>
+    <div class="r1-main">
+      <div class="component-list">
+        <div class="component-item fade-in">
+          <span class="comp-idx">01</span>
+          <span class="comp-name">Character-level Tokenization</span>
+          <span class="comp-note">vocab_size = 17</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">02</span>
+          <span class="comp-name">Token + Positional Embeddings</span>
+          <span class="comp-note">n_embd = 32</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">03</span>
+          <span class="comp-name">Self-Attention (Single Head)</span>
+          <span class="comp-note">causal mask</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">04</span>
+          <span class="comp-name">Multi-Head Attention</span>
+          <span class="comp-note">n_head = 4</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">05</span>
+          <span class="comp-name">Feed Forward Network</span>
+          <span class="comp-note">4× expansion</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">06</span>
+          <span class="comp-name">Layer Normalization</span>
+          <span class="comp-note">pre-norm</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">07</span>
+          <span class="comp-name">Residual Connections</span>
+          <span class="comp-note">all blocks</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">08</span>
+          <span class="comp-name">Transformer Blocks</span>
+          <span class="comp-note">n_layer = 3</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">09</span>
+          <span class="comp-name">AdamW Optimizer</span>
+          <span class="comp-note">lr = 1e-3</span>
+        </div>
+        <div class="component-item fade-in">
+          <span class="comp-idx">10</span>
+          <span class="comp-name">Autoregressive Text Generation</span>
+          <span class="comp-note">temperature sampling</span>
+        </div>
+      </div>
+    </div>
+    <div class="r1-stats">
+      <div class="stat-block">
+        <div class="stat-label">Final Loss</div>
+        <div class="stat-value">0.077</div>
+        <div class="stat-desc">After 1000 steps</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Context Length</div>
+        <div class="stat-value">8</div>
+        <div class="stat-desc">block_size tokens</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Transformer Layers</div>
+        <div class="stat-value">3</div>
+        <div class="stat-desc">Stacked blocks</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Attention Heads</div>
+        <div class="stat-value">4</div>
+        <div class="stat-desc">Per layer</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Embedding Dim</div>
+        <div class="stat-value">32</div>
+        <div class="stat-desc">n_embd</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Training Corpus</div>
+        <div class="stat-value">36</div>
+        <div class="stat-desc">chars · 3-line corpus</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section id="demo">
+  <div class="section-header">
+    <div class="section-number">§04</div>
+    <div class="section-title-block">
+      <span class="section-title">Interactive Demo</span>
+      <span class="section-status">R1GPT · Research Prototype</span>
+    </div>
+  </div>
+  <div class="demo-content">
+    <div class="demo-sidebar">
+      <h2>Research<br>Demo</h2>
+      <p>Explore R1GPT's character-level generation. Input a seed — the model continues autoregressively.</p>
+      <div class="demo-notice">
+        <p>LIVE · Connected to real R1GPT v1 backend. Model trains on startup then serves inference. Corpus: "hello world / i love ai / gpt is amazing"</p>
+      </div>
+    </div>
+    <div class="demo-interface">
+      <div class="demo-label">Seed Text</div>
+      <div class="demo-input-row">
+        <input type="text" class="demo-input" id="seed-input" placeholder="hello" value="hello" maxlength="100">
+        <button class="demo-run" id="generate-btn">Generate →</button>
+      </div>
+      <div class="demo-controls">
+        <div class="demo-control">
+          <span class="control-label">Temperature</span>
+          <input type="number" class="control-input" id="temp-input" value="0.8" min="0.1" max="2.0" step="0.1">
+        </div>
+        <div class="demo-control">
+          <span class="control-label">Max Tokens</span>
+          <input type="number" class="control-input" id="tokens-input" value="200" min="50" max="500" step="50">
+        </div>
+      </div>
+      <div class="demo-output-container">
+        <div class="output-header">
+          <span class="output-title">Generated Output</span>
+          <span class="output-status" id="output-status">Ready</span>
+        </div>
+        <div class="output-body" id="output-body">
+          <span class="output-placeholder">Click Generate to run inference...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESEARCH NOTES -->
+<section id="research">
+  <div class="section-header">
+    <div class="section-number">§05</div>
+    <div class="section-title-block">
+      <span class="section-title">Research Notes</span>
+      <span class="section-status">Engineering Documentation</span>
+    </div>
+  </div>
+  <div class="research-content">
+    <div class="research-sidebar">
+      <h2>Engineering<br>Documentation</h2>
+      <p>Technical notes, derivations, and implementation details written during development of the RGPT architecture.</p>
+    </div>
+    <div class="notes-grid">
+      <a href="#" class="note-item fade-in">
+        <div class="note-idx">NOTE · 001</div>
+        <div class="note-title">Attention Explained</div>
+        <div class="note-desc">A ground-up derivation of the attention mechanism — from intuition to the scaled dot-product formula. Includes visualization of attention weights.</div>
+        <span class="note-tag">Attention</span>
+      </a>
+      <a href="#" class="note-item fade-in">
+        <div class="note-idx">NOTE · 002</div>
+        <div class="note-title">Transformer Block Architecture</div>
+        <div class="note-desc">Deep dive into the pre-norm transformer block — how residual streams, layer norms, and sublayers interact to form the core building block.</div>
+        <span class="note-tag">Architecture</span>
+      </a>
+      <a href="#" class="note-item fade-in">
+        <div class="note-idx">NOTE · 003</div>
+        <div class="note-title">The Training Loop</div>
+        <div class="note-desc">Implementing the full training procedure: data loading, batch sampling, forward pass, loss computation, backprop, and AdamW optimization.</div>
+        <span class="note-tag">Training</span>
+      </a>
+      <a href="#" class="note-item fade-in">
+        <div class="note-idx">NOTE · 004</div>
+        <div class="note-title">Building GPT From Scratch</div>
+        <div class="note-desc">Complete walkthrough of the R1GPT codebase — every module explained, every hyperparameter justified, every architectural decision documented.</div>
+        <span class="note-tag">Implementation</span>
+      </a>
+      <a href="#" class="note-item fade-in">
+        <div class="note-idx">NOTE · 005</div>
+        <div class="note-title">Character-level Tokenization</div>
+        <div class="note-desc">Why start with characters? A study of the tradeoffs between character, subword, and word tokenization for small-scale GPT research.</div>
+        <span class="note-tag">Tokenization</span>
+      </a>
+      <a href="#" class="note-item fade-in">
+        <div class="note-idx">NOTE · 006</div>
+        <div class="note-title">Scaling Laws & Next Steps</div>
+        <div class="note-desc">What the Chinchilla and GPT-3 papers tell us about data, compute, and parameter tradeoffs — and how that informs the R2GPT roadmap.</div>
+        <span class="note-tag">Research</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- TIMELINE -->
+<section id="timeline">
+  <div class="section-header">
+    <div class="section-number">§06</div>
+    <div class="section-title-block">
+      <span class="section-title">Development Timeline</span>
+      <span class="section-status">Ongoing</span>
+    </div>
+  </div>
+  <div class="timeline-content">
+    <div class="timeline-sidebar">
+      <h2>Evolution<br>of RGPT</h2>
+      <p>The development path from a simple bigram model to a full GPT implementation — and beyond.</p>
+    </div>
+    <div class="timeline-main">
+      <div class="tl-item completed fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Character-level Tokenizer</span>
+        <span class="tl-note">complete</span>
+      </div>
+      <div class="tl-item completed fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Bigram Language Model</span>
+        <span class="tl-note">complete</span>
+      </div>
+      <div class="tl-item completed fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Single-Head Self-Attention</span>
+        <span class="tl-note">complete</span>
+      </div>
+      <div class="tl-item completed fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Multi-Head Attention</span>
+        <span class="tl-note">complete</span>
+      </div>
+      <div class="tl-item completed fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Transformer Block</span>
+        <span class="tl-note">complete</span>
+      </div>
+      <div class="tl-item completed fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Full GPT Architecture (R1GPT)</span>
+        <span class="tl-note">complete</span>
+      </div>
+      <div class="tl-item completed fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Training on Shakespeare Corpus</span>
+        <span class="tl-note">complete</span>
+      </div>
+      <div class="tl-item active fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">BPE Tokenizer · R2GPT Development</span>
+        <span class="tl-note">in progress</span>
+      </div>
+      <div class="tl-item future fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Instruction Tuning Research · R3GPT</span>
+        <span class="tl-note">planned</span>
+      </div>
+      <div class="tl-item future fade-in">
+        <div class="tl-dot"></div>
+        <span class="tl-name">Future Foundation Models</span>
+        <span class="tl-note">long-term</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OPEN SOURCE -->
+<section id="opensource">
+  <div class="section-header">
+    <div class="section-number">§07</div>
+    <div class="section-title-block">
+      <span class="section-title">Open Source</span>
+      <span class="section-status">Public · MIT License</span>
+    </div>
+  </div>
+  <div class="os-content">
+    <div class="os-block fade-in">
+      <div class="os-eyebrow">Research First</div>
+      <h2>Built in the Open.<br>Documented Thoroughly.</h2>
+      <p>Every architecture decision, training run, and failed experiment is documented. RGPT Model exists to accelerate understanding — not to gatekeep it.</p>
+      <div class="os-links">
+        <a href="#" class="os-link">
+          <span class="os-link-name">GitHub Repository</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+        <a href="#" class="os-link">
+          <span class="os-link-name">R1GPT Source Code</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+        <a href="#" class="os-link">
+          <span class="os-link-name">Research Notes</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+        <a href="#" class="os-link">
+          <span class="os-link-name">Training Logs</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+      </div>
+    </div>
+    <div class="os-block fade-in">
+      <div class="os-eyebrow">Educational Mission</div>
+      <h2>Understanding Is<br>the Product.</h2>
+      <p>RGPT Model is not a commercial product. It is a living engineering document — proof that serious AI research doesn't require a large organization, only deep curiosity and methodical execution.</p>
+      <div class="os-links">
+        <a href="#" class="os-link">
+          <span class="os-link-name">Learning Path: GPT from Scratch</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+        <a href="#" class="os-link">
+          <span class="os-link-name">Architecture Documentation</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+        <a href="#" class="os-link">
+          <span class="os-link-name">Implementation Guide</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+        <a href="#" class="os-link">
+          <span class="os-link-name">Follow Development</span>
+          <span class="os-link-arrow">↗</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <div class="footer-logo">RGPT/Model</div>
+    <p class="footer-tagline">Building AI Through Understanding.<br><br>An independent research initiative.</p>
+  </div>
+  <div class="footer-col">
+    <h4>Models</h4>
+    <ul>
+      <li><a href="#">R1GPT</a></li>
+      <li><a href="#">R2GPT</a></li>
+      <li><a href="#">R3GPT</a></li>
+      <li><a href="#">Roadmap</a></li>
+    </ul>
+  </div>
+  <div class="footer-col">
+    <h4>Research</h4>
+    <ul>
+      <li><a href="#">Architecture Notes</a></li>
+      <li><a href="#">Training Logs</a></li>
+      <li><a href="#">Documentation</a></li>
+      <li><a href="#">Learning Path</a></li>
+    </ul>
+  </div>
+  <div class="footer-col">
+    <h4>Open Source</h4>
+    <ul>
+      <li><a href="#">GitHub ↗</a></li>
+      <li><a href="#">Source Code</a></li>
+      <li><a href="#">MIT License</a></li>
+      <li><a href="#">Contribute</a></li>
+    </ul>
+  </div>
+</footer>
+<div class="footer-bottom">
+  <span class="footer-copy">© 2024 RGPT Model · Independent Research Initiative</span>
+  <span class="footer-version">R1GPT v0.1 · PyTorch · Open Source</span>
+</div>
+
+<script>
+// ---- FADE IN OBSERVER ----
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      setTimeout(() => entry.target.classList.add('visible'), 80);
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// ---- REAL R1GPT BACKEND DEMO ----
+const API = 'http://localhost:5000';
+let generating = false;
+
+async function streamOutput(text) {
+  const outputBody = document.getElementById('output-body');
+  const outputStatus = document.getElementById('output-status');
+  outputBody.innerHTML = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  outputBody.appendChild(cursor);
+
+  let i = 0;
+  const chars = text.split('');
+  return new Promise(resolve => {
+    const interval = setInterval(() => {
+      if (i >= chars.length) {
+        clearInterval(interval);
+        cursor.remove();
+        outputStatus.textContent = `Done · ${chars.length} chars`;
+        resolve();
+        return;
+      }
+      const batch = Math.floor(Math.random() * 3) + 1;
+      for (let j = 0; j < batch && i < chars.length; j++) {
+        outputBody.insertBefore(document.createTextNode(chars[i]), cursor);
+        i++;
+      }
+      outputStatus.textContent = `Generating... ${i}/${chars.length}`;
+    }, 16);
+  });
+}
+
+document.getElementById('generate-btn').addEventListener('click', async () => {
+  if (generating) return;
+  generating = true;
+
+  const seed       = document.getElementById('seed-input').value || 'hello';
+  const temp       = parseFloat(document.getElementById('temp-input').value) || 0.8;
+  const maxTokens  = parseInt(document.getElementById('tokens-input').value) || 100;
+  const outputBody = document.getElementById('output-body');
+  const outputStatus = document.getElementById('output-status');
+  const btn = document.getElementById('generate-btn');
+
+  btn.textContent = 'Generating...';
+  btn.style.opacity = '0.6';
+  outputStatus.textContent = 'Calling R1GPT...';
+  outputBody.innerHTML = '<span class="output-placeholder">Connecting to R1GPT v1 backend...</span>';
+
+  try {
+    const res = await fetch(`${API}/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seed, max_tokens: maxTokens, temperature: temp })
+    });
+
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+    const data = await res.json();
+    outputStatus.textContent = 'Streaming...';
+    await streamOutput(data.output);
+
+  } catch (err) {
+    outputBody.innerHTML = `<span style="color:#6a6a6a">⚠ Could not reach R1GPT backend at ${API}.<br><br>Start the server with:<br><span style="color:#b0b0b0">python server.py</span><br><br>Error: ${err.message}</span>`;
+    outputStatus.textContent = 'Offline';
+  }
+
+  btn.textContent = 'Generate →';
+  btn.style.opacity = '1';
+  generating = false;
+});
+
+document.getElementById('seed-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('generate-btn').click();
+});
+
+// ---- CHECK SERVER ON LOAD ----
+(async () => {
+  try {
+    const res = await fetch(`${API}/status`);
+    if (res.ok) {
+      const d = await res.json();
+      document.getElementById('output-status').textContent =
+        `Online · loss ${d.final_loss} · vocab ${d.vocab_size} chars`;
+      document.querySelector('.demo-notice p').textContent =
+        `LIVE · R1GPT v1 connected. Corpus: "${d.corpus}". Final loss: ${d.final_loss}`;
+    }
+  } catch (_) {
+    document.getElementById('output-status').textContent = 'Server offline — run python server.py';
+  }
+})();
+</script>
+
+</body>
+</html>
