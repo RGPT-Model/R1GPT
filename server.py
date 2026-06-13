@@ -15,10 +15,11 @@ from flask_cors import CORS
 # ─────────────────────────────────────────
 CORPUS_PATH = os.path.join(os.path.dirname(__file__), "input.txt")
 TRAIN_STEPS = 1000
-BATCH_SIZE  = 4
-BLOCK_SIZE  = 8
-N_EMBD      = 32
+BATCH_SIZE  = 32
+BLOCK_SIZE  = 64
+N_EMBD      = 128
 N_HEAD      = 4
+N_LAYER     = 4
 LR          = 1e-3
 
 # ─────────────────────────────────────────
@@ -112,7 +113,9 @@ class GPTLanguageModel(nn.Module):
         super().__init__()
         self.token_embedding_table    = nn.Embedding(vocab_size, N_EMBD)
         self.position_embedding_table = nn.Embedding(BLOCK_SIZE, N_EMBD)
-        self.blocks = nn.Sequential(Block(), Block(), Block())
+        self.blocks = nn.Sequential(
+            *[Block() for _ in range(N_LAYER)]
+        )
         self.ln_f   = nn.LayerNorm(N_EMBD)
         self.lm_head = nn.Linear(N_EMBD, vocab_size)
 
@@ -221,7 +224,7 @@ def status():
         "n_embd":      N_EMBD,
         "n_head":      N_HEAD,
         "block_size":  BLOCK_SIZE,
-        "n_blocks":    3,
+        "n_blocks":    N_LAYER,
         "train_steps": TRAIN_STEPS,
         "final_loss":  round(final_loss, 4),
         "corpus":      text.strip(),

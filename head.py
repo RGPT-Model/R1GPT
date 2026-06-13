@@ -20,8 +20,9 @@ def decode(s):
 
 data = torch.tensor(encode(text))
 
-batch_size = 4
-block_size = 8
+batch_size = 32
+block_size = 64
+max_iters = 5000
 
 def get_batch():
     ix = torch.randint(len(data) - block_size, (batch_size,))
@@ -29,8 +30,10 @@ def get_batch():
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
     return x, y
 
-n_embd = 32
-head_size = 16
+n_embd = 128
+n_head = 4
+n_layer = 4
+head_size = n_embd // n_head
 
 class Head(nn.Module):
 
@@ -101,11 +104,11 @@ class MultiHeadAttention(nn.Module):
         return out
 
 mha = MultiHeadAttention(
-    num_heads=4,
-    head_size=16
+    num_heads=n_head,
+    head_size=head_size
 )
 
-x = torch.randn(4, 8, 32)
+x = torch.randn(4, 8, n_embd)
 
 out = mha(x)
 
@@ -128,7 +131,7 @@ class FeedForward(nn.Module):
 # Test
 ffwd = FeedForward()
 
-x = torch.randn(4,8,32)
+x = torch.randn(4, 8, n_embd)
 
 out = ffwd(x)
 
@@ -136,7 +139,7 @@ print(out.shape)
 
 class Block(nn.Module):
 
-    def __init__(self, n_embd=n_embd, n_head=4):
+    def __init__(self, n_embd=n_embd, n_head=n_head):
         super().__init__()
         head_size = n_embd // n_head
         self.sa = MultiHeadAttention(n_head, head_size)
@@ -152,7 +155,7 @@ class Block(nn.Module):
 # Test Block
 block = Block()
 
-x = torch.randn(4,8,32)
+x = torch.randn(4, 8, n_embd)
 
 out = block(x)
 
@@ -174,9 +177,7 @@ class GPTLanguageModel(nn.Module):
         )
 
         self.blocks = nn.Sequential(
-            Block(),
-            Block(),
-            Block()
+            *[Block() for _ in range(n_layer)]
         )
 
         self.ln_f = nn.LayerNorm(n_embd)
@@ -235,13 +236,19 @@ class GPTLanguageModel(nn.Module):
         return idx
 
 model = GPTLanguageModel(vocab_size=vocab_size)
+print(
+    sum(
+        p.numel()
+        for p in model.parameters()
+    )
+)
 
 optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=1e-3
 )
 
-for step in range(1000):
+for iter in range(max_iters):
 
     xb, yb = get_batch()
 
@@ -256,8 +263,8 @@ for step in range(1000):
 
     optimizer.step()
 
-    if step % 100 == 0:
-        print(step, loss.item())
+    if iter % 500 == 0:
+        print(iter, loss.item())
 
 print(loss.item())
 

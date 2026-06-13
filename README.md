@@ -174,7 +174,7 @@ x = tok_emb + pos_emb   # (B, T, C)
 ## Project Structure
 
 ```
-R1GPT-v1/
+R1GPT/
 │
 ├── head.py              # Full GPT model: Head, MultiHeadAttention,
 │                        # FeedForward, Block, GPTLanguageModel
@@ -214,8 +214,8 @@ The `docs/` folder contains detailed technical writeups:
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/RGPT-Model/R1GPT-v1.git
-cd R1GPT-v1
+git clone https://github.com/RGPT-Model/R1GPT.git
+cd R1GPT
 ```
 
 **2. Create a virtual environment**
