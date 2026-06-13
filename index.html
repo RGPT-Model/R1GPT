@@ -1115,6 +1115,220 @@
     transform: translateY(0);
   }
 
+  /* ---- DOCUMENTATION MODAL ---- */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(12px);
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  
+  .modal-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+  
+  .modal-window {
+    background: var(--off-black);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
+    transform: translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .modal-overlay.active .modal-window {
+    transform: translateY(0);
+  }
+  
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .modal-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--subtle);
+  }
+  
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--subtle);
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+  
+  .modal-close:hover {
+    color: var(--off-white);
+  }
+  
+  .modal-body {
+    padding: 32px 40px;
+    overflow-y: auto;
+    font-family: var(--sans);
+    color: var(--light-muted);
+    font-size: 15px;
+    line-height: 1.8;
+  }
+  
+  /* Markdown styling inside modal */
+  .modal-body h1 {
+    font-family: var(--serif);
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--off-white);
+    margin-bottom: 24px;
+    line-height: 1.25;
+  }
+  
+  .modal-body h2 {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 20px;
+    color: var(--off-white);
+    margin-top: 36px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  
+  .modal-body h3 {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 16px;
+    color: var(--off-white);
+    margin-top: 24px;
+    margin-bottom: 12px;
+  }
+  
+  .modal-body p {
+    margin-bottom: 20px;
+  }
+  
+  .modal-body blockquote {
+    border-left: 2px solid var(--subtle);
+    padding-left: 20px;
+    margin: 24px 0;
+    font-style: italic;
+    color: var(--light);
+  }
+  
+  .modal-body code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--dark);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--off-white);
+  }
+  
+  .modal-body pre {
+    background: var(--dark);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    overflow-x: auto;
+    margin: 24px 0;
+  }
+  
+  .modal-body pre code {
+    padding: 0;
+    background: none;
+    border-radius: 0;
+  }
+  
+  .modal-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+  }
+  
+  .modal-body th, .modal-body td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    font-size: 14px;
+  }
+  
+  .modal-body th {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--subtle);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  
+  .modal-body ul, .modal-body ol {
+    margin-bottom: 24px;
+    padding-left: 20px;
+  }
+  
+  .modal-body li {
+    margin-bottom: 8px;
+  }
+
+  .modal-body .math-block {
+    background: var(--dark);
+    border-left: 2px solid var(--subtle);
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    margin: 24px 0;
+    color: var(--off-white);
+    text-align: center;
+    overflow-x: auto;
+  }
+  
+  .modal-body .math-inline {
+    font-family: var(--mono);
+    font-style: italic;
+    color: var(--off-white);
+  }
+
+  .footer-dev-link {
+    color: var(--subtle);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--muted);
+    transition: color 0.2s, border-color 0.2s;
+  }
+
+  .footer-dev-link:hover {
+    color: var(--off-white);
+    border-bottom-color: var(--off-white);
+  }
+  
+  @media (max-width: 600px) {
+    .modal-body {
+      padding: 24px;
+    }
+  }
+
   /* ---- RESPONSIVE ---- */
   @media (max-width: 900px) {
     nav { padding: 0 24px; }
@@ -1172,13 +1386,13 @@
 
 <!-- NAV -->
 <nav>
-  <a href="#" class="nav-logo">RGPT<span>/</span>Model</a>
+  <a href="https://github.com/RGPT-Model" class="nav-logo" target="_blank">RGPT<span>/</span>Model</a>
   <ul class="nav-links">
     <li><a href="#models">Models</a></li>
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#research">Research</a></li>
     <li><a href="#demo">Demo</a></li>
-    <li><a href="#opensource" class="nav-cta">GitHub ↗</a></li>
+    <li><a href="https://github.com/RGPT-Model/R1GPT-v1" class="nav-cta" target="_blank">GitHub ↗</a></li>
   </ul>
 </nav>
 
@@ -1604,37 +1818,37 @@
       <p>Technical notes, derivations, and implementation details written during development of the RGPT architecture.</p>
     </div>
     <div class="notes-grid">
-      <a href="#" class="note-item fade-in">
+      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/attention.md">
         <div class="note-idx">NOTE · 001</div>
         <div class="note-title">Attention Explained</div>
         <div class="note-desc">A ground-up derivation of the attention mechanism — from intuition to the scaled dot-product formula. Includes visualization of attention weights.</div>
         <span class="note-tag">Attention</span>
       </a>
-      <a href="#" class="note-item fade-in">
+      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/transformer-block.md">
         <div class="note-idx">NOTE · 002</div>
         <div class="note-title">Transformer Block Architecture</div>
         <div class="note-desc">Deep dive into the pre-norm transformer block — how residual streams, layer norms, and sublayers interact to form the core building block.</div>
         <span class="note-tag">Architecture</span>
       </a>
-      <a href="#" class="note-item fade-in">
+      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="training-loop">
         <div class="note-idx">NOTE · 003</div>
         <div class="note-title">The Training Loop</div>
         <div class="note-desc">Implementing the full training procedure: data loading, batch sampling, forward pass, loss computation, backprop, and AdamW optimization.</div>
         <span class="note-tag">Training</span>
       </a>
-      <a href="#" class="note-item fade-in">
+      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="project-goal">
         <div class="note-idx">NOTE · 004</div>
         <div class="note-title">Building GPT From Scratch</div>
         <div class="note-desc">Complete walkthrough of the R1GPT codebase — every module explained, every hyperparameter justified, every architectural decision documented.</div>
         <span class="note-tag">Implementation</span>
       </a>
-      <a href="#" class="note-item fade-in">
+      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="text-must-become-numbers">
         <div class="note-idx">NOTE · 005</div>
         <div class="note-title">Character-level Tokenization</div>
         <div class="note-desc">Why start with characters? A study of the tradeoffs between character, subword, and word tokenization for small-scale GPT research.</div>
         <span class="note-tag">Tokenization</span>
       </a>
-      <a href="#" class="note-item fade-in">
+      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="final-outcome-r1gpt-v1">
         <div class="note-idx">NOTE · 006</div>
         <div class="note-title">Scaling Laws & Next Steps</div>
         <div class="note-desc">What the Chinchilla and GPT-3 papers tell us about data, compute, and parameter tradeoffs — and how that informs the R2GPT roadmap.</div>
@@ -1728,19 +1942,19 @@
       <h2>Built in the Open.<br>Documented Thoroughly.</h2>
       <p>Every architecture decision, training run, and failed experiment is documented. RGPT Model exists to accelerate understanding — not to gatekeep it.</p>
       <div class="os-links">
-        <a href="#" class="os-link">
+        <a href="https://github.com/RGPT-Model/R1GPT-v1" class="os-link" target="_blank">
           <span class="os-link-name">GitHub Repository</span>
           <span class="os-link-arrow">↗</span>
         </a>
-        <a href="#" class="os-link">
+        <a href="https://github.com/RGPT-Model/R1GPT-v1/blob/main/head.py" class="os-link" target="_blank">
           <span class="os-link-name">R1GPT Source Code</span>
           <span class="os-link-arrow">↗</span>
         </a>
-        <a href="#" class="os-link">
+        <a href="#" class="os-link doc-trigger" data-doc="docs/learning-notes.md">
           <span class="os-link-name">Research Notes</span>
           <span class="os-link-arrow">↗</span>
         </a>
-        <a href="#" class="os-link">
+        <a href="https://github.com/RGPT-Model/R1GPT-v1#readme" class="os-link" target="_blank">
           <span class="os-link-name">Training Logs</span>
           <span class="os-link-arrow">↗</span>
         </a>
@@ -1751,19 +1965,19 @@
       <h2>Understanding Is<br>the Product.</h2>
       <p>RGPT Model is not a commercial product. It is a living engineering document — proof that serious AI research doesn't require a large organization, only deep curiosity and methodical execution.</p>
       <div class="os-links">
-        <a href="#" class="os-link">
+        <a href="#" class="os-link doc-trigger" data-doc="docs/learning-notes.md">
           <span class="os-link-name">Learning Path: GPT from Scratch</span>
           <span class="os-link-arrow">↗</span>
         </a>
-        <a href="#" class="os-link">
+        <a href="#" class="os-link doc-trigger" data-doc="docs/transformer-block.md">
           <span class="os-link-name">Architecture Documentation</span>
           <span class="os-link-arrow">↗</span>
         </a>
-        <a href="#" class="os-link">
+        <a href="#" class="os-link doc-trigger" data-doc="docs/attention.md">
           <span class="os-link-name">Implementation Guide</span>
           <span class="os-link-arrow">↗</span>
         </a>
-        <a href="#" class="os-link">
+        <a href="https://github.com/RGPT-Model" class="os-link" target="_blank">
           <span class="os-link-name">Follow Development</span>
           <span class="os-link-arrow">↗</span>
         </a>
@@ -1771,6 +1985,19 @@
     </div>
   </div>
 </section>
+
+<!-- DOCUMENTATION MODAL -->
+<div id="doc-modal" class="modal-overlay">
+  <div class="modal-window">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title-text">DOCUMENTATION</span>
+      <button class="modal-close" id="modal-close-btn">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body-content">
+      <!-- Loaded dynamically via JavaScript -->
+    </div>
+  </div>
+</div>
 
 <!-- FOOTER -->
 <footer>
@@ -1781,33 +2008,33 @@
   <div class="footer-col">
     <h4>Models</h4>
     <ul>
-      <li><a href="#">R1GPT</a></li>
-      <li><a href="#">R2GPT</a></li>
-      <li><a href="#">R3GPT</a></li>
-      <li><a href="#">Roadmap</a></li>
+      <li><a href="#models">R1GPT</a></li>
+      <li><a href="#models">R2GPT</a></li>
+      <li><a href="#models">R3GPT</a></li>
+      <li><a href="#timeline">Roadmap</a></li>
     </ul>
   </div>
   <div class="footer-col">
     <h4>Research</h4>
     <ul>
-      <li><a href="#">Architecture Notes</a></li>
-      <li><a href="#">Training Logs</a></li>
-      <li><a href="#">Documentation</a></li>
-      <li><a href="#">Learning Path</a></li>
+      <li><a href="#" class="doc-trigger" data-doc="docs/transformer-block.md">Architecture Notes</a></li>
+      <li><a href="https://github.com/RGPT-Model/R1GPT-v1#readme" target="_blank">Training Logs</a></li>
+      <li><a href="#" class="doc-trigger" data-doc="docs/learning-notes.md">Documentation</a></li>
+      <li><a href="#" class="doc-trigger" data-doc="docs/learning-notes.md">Learning Path</a></li>
     </ul>
   </div>
   <div class="footer-col">
     <h4>Open Source</h4>
     <ul>
-      <li><a href="#">GitHub ↗</a></li>
-      <li><a href="#">Source Code</a></li>
-      <li><a href="#">MIT License</a></li>
-      <li><a href="#">Contribute</a></li>
+      <li><a href="https://github.com/RGPT-Model" target="_blank">GitHub ↗</a></li>
+      <li><a href="https://github.com/RGPT-Model/R1GPT-v1" target="_blank">Source Code</a></li>
+      <li><a href="https://github.com/RGPT-Model/R1GPT-v1/blob/main/LICENSE" target="_blank">MIT License</a></li>
+      <li><a href="https://github.com/RGPT-Model/R1GPT-v1" target="_blank">Contribute</a></li>
     </ul>
   </div>
 </footer>
 <div class="footer-bottom">
-  <span class="footer-copy">© 2024 RGPT Model · Independent Research Initiative</span>
+  <span class="footer-copy">© 2024 RGPT Model · Dev: <a href="https://github.com/rohansachinpatil" target="_blank" class="footer-dev-link">Rohan Patil</a></span>
   <span class="footer-version">R1GPT v0.1 · PyTorch · Open Source</span>
 </div>
 
@@ -1914,6 +2141,151 @@ document.getElementById('seed-input').addEventListener('keydown', e => {
     document.getElementById('output-status').textContent = 'Server offline — run python server.py';
   }
 })();
+
+// ---- DOCUMENTATION MODAL LOGIC ----
+function parseMarkdown(md) {
+  // Escape HTML to prevent rendering issues and protect code snippets
+  let html = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Code blocks
+  html = html.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
+  });
+
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Math equations block
+  html = html.replace(/\$\$([\s\S]*?)\$\$/g, '<div class="math-block">$1</div>');
+  html = html.replace(/\$([^$]+)\$/g, '<span class="math-inline">$1</span>');
+
+  // Blockquotes
+  html = html.replace(/^\s*>\s+(.*)$/gm, '<blockquote>$1</blockquote>');
+
+  // Headers with clean auto-generated IDs
+  html = html.replace(/^\s*(#+)\s+(.*)$/gm, (match, hashes, title) => {
+    const level = hashes.length;
+    const cleanTitle = title.replace(/<[^>]*>/g, '').trim();
+    const id = cleanTitle.toLowerCase()
+      .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '') // strip emojis
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return `<h${level} id="${id}">${title}</h${level}>`;
+  });
+
+  // Lists
+  html = html.replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
+  html = html.replace(/<\/ul>\s*<ul>/g, ''); // merge lists
+
+  // Bold / Italics
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  // Tables
+  let lines = html.split('\n');
+  let finalHtml = '';
+  let inTable = false;
+  let tempTable = [];
+  for (let line of lines) {
+    if (line.trim().startsWith('|')) {
+      if (line.includes('---')) continue;
+      let cells = line.split('|').slice(1, -1).map(c => c.trim());
+      tempTable.push(cells);
+      inTable = true;
+    } else {
+      if (inTable && tempTable.length > 0) {
+        let header = tempTable[0];
+        let rows = tempTable.slice(1);
+        let tableHtml = `<table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+        finalHtml += tableHtml + '\n';
+        tempTable = [];
+        inTable = false;
+      }
+      finalHtml += line + '\n';
+    }
+  }
+
+  // Wrap sections in clean paragraphs
+  let blocks = finalHtml.split(/\n\s*\n/);
+  return blocks.map(block => {
+    let trimmed = block.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('<h') || trimmed.startsWith('<pre') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<blockquote>')) {
+      return trimmed;
+    }
+    return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+  }).join('\n');
+}
+
+const modal = document.getElementById('doc-modal');
+const modalBody = document.getElementById('modal-body-content');
+const modalTitle = document.getElementById('modal-title-text');
+const modalClose = document.getElementById('modal-close-btn');
+
+async function openDoc(path, anchor = null) {
+  modalTitle.textContent = 'LOADING...';
+  modalBody.innerHTML = '<span class="output-placeholder">Fetching document...</span>';
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`Failed to load ${path}`);
+    const text = await response.text();
+    
+    // Parse name from filename for title
+    const filename = path.split('/').pop().replace('.md', '').replace('-', ' ');
+    modalTitle.textContent = filename.toUpperCase();
+
+    // Render HTML content
+    modalBody.innerHTML = parseMarkdown(text);
+
+    // Scroll to anchor if provided
+    if (anchor) {
+      setTimeout(() => {
+        const el = document.getElementById(anchor);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } else {
+      modalBody.scrollTop = 0;
+    }
+  } catch (err) {
+    modalBody.innerHTML = `<span style="color:#6a6a6a">⚠ Error loading document: ${err.message}</span>`;
+    modalTitle.textContent = 'ERROR';
+  }
+}
+
+function closeDoc() {
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// Bind clicks to triggers
+document.addEventListener('click', e => {
+  const trigger = e.target.closest('.doc-trigger');
+  if (trigger) {
+    e.preventDefault();
+    const docPath = trigger.getAttribute('data-doc');
+    const anchor = trigger.getAttribute('data-anchor');
+    openDoc(docPath, anchor);
+  }
+});
+
+modalClose.addEventListener('click', closeDoc);
+modal.addEventListener('click', e => {
+  if (e.target === modal) closeDoc();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDoc();
+});
 </script>
 
 </body>
