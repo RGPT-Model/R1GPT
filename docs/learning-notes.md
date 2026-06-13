@@ -34,4 +34,4 @@ If the loss does not fall:
 - The causal mask is incorrectly applied, causing information leakage or wrong shape logic.
 - Residual connections are not summing correctly.
 
-In our case, testing on a tiny subset of `input.txt` allowed the model to rapidly overfit (loss $\approx 0.03$) and reconstruct the exact sentences perfectly. This proved the mathematical and structural correctness of the architecture before scaling up to Tiny Shakespeare.
+In our case, testing on the tiny 3-line corpus of `input.txt` allowed the model to rapidly overfit (loss $\approx 0.07$) and reconstruct the exact sentences perfectly. This proved the mathematical and structural correctness of the architecture.
