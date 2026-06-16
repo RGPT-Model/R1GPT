@@ -1,20 +1,22 @@
 # R1GPT Learning Notes
 
-> This document captures the major concepts, implementation details, debugging lessons, and architectural insights gained while building **R1GPT** — a GPT-style Transformer language model implemented completely from scratch in PyTorch.
+> This document captures every major concept, implementation detail, debugging lesson, and architectural insight gained while building **R1GPT** — a GPT-style Transformer language model implemented completely from scratch in PyTorch, trained on WikiText with a custom BPE tokenizer.
 
 ---
 
 ## 🎯 Project Goal
 
-The purpose of R1GPT was not merely to reproduce NanoGPT code, but to deeply understand:
+The purpose of R1GPT was not merely to reproduce NanoGPT code, but to deeply understand every component of a modern language model:
 
-| Goal | Description |
-|------|-------------|
-| 🧠 Language Models | How they work internally |
-| ⚙️ Transformers | How they process text |
-| 🔍 Attention | How it works mathematically |
-| 📈 Training | How gradient updates teach the model |
-| 📝 Generation | How text emerges from next-token prediction |
+| Goal | Description | Status |
+|------|-------------|--------|
+| 🧠 Language Models | How they work internally | ✅ |
+| ⚙️ Transformers | How they process text | ✅ |
+| 🔍 Attention | How it works mathematically | ✅ |
+| 🔤 Tokenization | BPE from scratch | ✅ |
+| 📈 Training | Gradient updates, scheduling | ✅ |
+| 🛡️ Regularization | Dropout, validation loss | ✅ |
+| 📝 Generation | Temperature, top-k sampling | ✅ |
 
 ---
 
@@ -25,13 +27,14 @@ The most important realization from the entire project:
 > **GPT is not trained to "understand" language directly. GPT is trained to predict the next token.**
 
 ```
-Current Tokens  →  Next Token
-─────────────────────────────
-"I love"        →  "AI"
-"The capital of France is"  →  "Paris"
+Current Tokens            →  Next Token
+──────────────────────────────────────
+"I love"                  →  "AI"
+"The capital of France"   →  "is"
+"The Eiffel Tower is in"  →  "Paris"
 ```
 
-During training, billions of these prediction tasks teach the model statistical patterns of language.
+During training, billions of these prediction tasks teach the model statistical patterns of language — and understanding *emerges* from this process.
 
 ---
 
@@ -40,30 +43,135 @@ During training, billions of these prediction tasks teach the model statistical 
 Neural networks cannot process raw text. The pipeline is:
 
 ```
-Text
- ↓
-Tokenizer
- ↓
-Token IDs (integers)
+Raw Text
+   ↓
+Tokenizer  (split into tokens)
+   ↓
+Token IDs  (map tokens → integers)
+   ↓
+Embeddings (map integers → vectors)
+   ↓
+Neural Network
 ```
 
-**Example — character-level tokenization:**
+**Two tokenization approaches used in R1GPT:**
+
+| Approach | v1 | v2 |
+|---|---|---|
+| Method | Character-level | BPE (Byte-Pair Encoding) |
+| Unit | Single character | Subword / merged token |
+| Vocabulary | 17 chars (toy corpus) | 165 tokens (WikiText) |
+| Granularity | Maximum | Learned from data |
+
+---
+
+## Character-Level Tokenization (v1)
+
+The simplest approach — every character is its own token:
+
+```python
+chars = sorted(list(set(text)))
+# ['a', 'b', 'c', 'd', ...]
+
+stoi = { ch: i for i, ch in enumerate(chars) }
+itos = { i: ch for i, ch in enumerate(chars) }
+
+def encode(s): return [stoi[c] for c in s]
+def decode(l): return ''.join([itos[i] for i in l])
+```
+
+**Example:**
 
 ```
 "banana"
- ↓
+   ↓
 Vocabulary: { 'a':0, 'b':1, 'n':2 }
- ↓
+   ↓
 [1, 0, 2, 0, 2, 0]
 ```
 
-This was the first step toward transforming language into something a neural network can learn from.
+**Limitation:** Every individual character gets its own ID, even common subwords like "the", "ing", "tion". The vocabulary is tiny but the sequences are long.
+
+---
+
+## BPE Tokenization (v2)
+
+Byte-Pair Encoding learns to merge frequent character pairs into subword tokens, reducing sequence length while maintaining expressiveness.
+
+### The Algorithm
+
+```
+Start:    ["h", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d"]
+
+Step 1:   Find most frequent pair: ("h", "e")
+          Merge → "he"
+          ["he", "l", "l", "o", " ", "w", "o", "r", "l", "d"]
+
+Step 2:   Find most frequent pair: ("he", "l")
+          Merge → "hel"
+          ["hel", "l", "o", " ", "w", "o", "r", "l", "d"]
+
+...
+
+Step 4:   ["hello", " ", "w", "o", "r", "l", "d"]
+```
+
+### get_stats() — Count Pair Frequencies
+
+```python
+def get_stats(tokens):
+    pairs = Counter()
+    for i in range(len(tokens) - 1):
+        pairs[(tokens[i], tokens[i+1])] += 1
+    return pairs
+```
+
+### merge() — Apply a Merge Rule
+
+```python
+def merge(tokens, pair):
+    new_tokens = []
+    i = 0
+    while i < len(tokens):
+        if (i < len(tokens) - 1
+                and tokens[i] == pair[0]
+                and tokens[i+1] == pair[1]):
+            new_tokens.append(pair[0] + pair[1])
+            i += 2       # skip both consumed tokens
+        else:
+            new_tokens.append(tokens[i])
+            i += 1
+    return new_tokens
+```
+
+> ⚠️ Critical bug to avoid: using `i += 1` instead of `i += 2` when a merge happens causes double-counting and corrupts the token stream.
+
+### What the Model Learned (First 20 WikiText Merges)
+
+```
+Merge  1:  (e, ' ')  → "e "    end-of-word: "the ", "are "
+Merge  2:  (t, h)    → "th"    "the", "that", "this", "with"
+Merge  3:  (t, ' ')  → "t "    end-of-word: "not ", "but "
+Merge  4:  (s, ' ')  → "s "    plural/verb: "words ", "runs "
+Merge  5:  (d, ' ')  → "d "    past tense: "called ", "used "
+Merge  6:  (,, ' ')  → ", "    comma-space: universal pattern
+Merge  7:  (o, u)    → "ou"    "out", "our", "you", "found"
+Merge  8:  (e, r)    → "er"    "other", "over", "after"
+Merge  9:  (i, n)    → "in"    "in", "into", "this"
+Merge 10:  (y, ' ')  → "y "    "they ", "by ", "only "
+Merge 18:  (' ', th) → " th"   " the", " this", " that"
+Merge 20:  (l, l)    → "ll"    "will", "all", "well"
+```
+
+After 100 merges on WikiText:
+- **Vocabulary size**: 165 tokens (65 base chars + 100 learned merges)
+- **Encode "hello"**: `[95, 77, 116, 123]` → decode back → `"hello"` ✅
 
 ---
 
 ## Vocabulary Construction
 
-The vocabulary is built in one line:
+For character-level tokenization:
 
 ```python
 chars = sorted(list(set(text)))
@@ -77,7 +185,7 @@ Each step serves a specific purpose:
 | `list()` | Enable indexing | Allows enumeration |
 | `sorted()` | Deterministic order | Same vocab every run |
 
-> Without converting to a list, indexing and enumeration would not be possible.
+For BPE: the vocabulary is built from base characters **plus** all learned merge tokens.
 
 ---
 
@@ -97,57 +205,66 @@ stoi = { 'a':0, 'b':1, 'c':2 }
 itos = { 0:'a', 1:'b', 2:'c' }
 ```
 
-This creates a complete round-trip:
+Complete round-trip:
 
 ```
-Text → encode() → Model → decode() → Text
+Text → encode() → [IDs] → Model → [IDs] → decode() → Text
 ```
 
 ---
 
 ## Dataset Creation
 
-The model does not learn from entire texts at once. Instead, every sequence is sliced into input/target pairs:
+The model does not learn from entire texts at once. Every sequence is sliced into input/target pairs:
 
 ```python
-x = data[i : i + block_size]      # input
+x = data[i : i + block_size]        # input
 y = data[i+1 : i + block_size + 1]  # target (shifted by 1)
 ```
 
-**Concrete example:**
+**Concrete example (block_size=4):**
 
 ```
-x = [ h, e, l, l ]
-y = [ e, l, l, o ]
+data = [h, e, l, l, o, ' ', w, o, r, l, d]
+
+Slice i=0:
+  x = [h, e, l, l]
+  y = [e, l, l, o]
+
+  Each position independently teaches:
+  h → e
+  e → l
+  l → l
+  l → o
 ```
 
-Each position predicts the next token, creating thousands of learning examples from a single corpus.
+From a single text file, this creates **millions** of training examples.
 
 ---
 
 ## Block Size — The Context Window
 
-```python
-block_size = 8
+```
+block_size = 64  (v2)
 ```
 
-This means: **the model can look at the previous 8 tokens.**
+The model can look at the previous 64 tokens when predicting the next one:
 
 ```
-Tokens: [ a, b, c, d, e, f, g, h ]
-                                 ↓
-                          predict 'i'
+Tokens: [t₀, t₁, t₂, ..., t₆₃]
+                               ↓
+                        predict t₆₄
 ```
 
-Increasing block size gives richer context but requires more memory and compute:
+| `block_size` | Context | Memory Cost |
+|---|---|---|
+| `8` | 8 tokens | Minimal |
+| `64` | 64 tokens | Low (R1GPT v2) |
+| `1024` | 1024 tokens | Medium (GPT-2) |
+| `2048` | 2048 tokens | Large (GPT-3) |
+| `128K` | 128K tokens | Very large (GPT-4) |
 
-| `block_size` | Context |
-|---|---|
-| `8` | 8 tokens back |
-| `64` | 64 tokens back |
-| `2048` | 2048 tokens back (GPT-3 scale) |
-
-> Context length is one of the major factors affecting model quality.
+> Context length is one of the primary factors in model quality. Every doubling quadruples the attention memory cost (O(T²)).
 
 ---
 
@@ -156,26 +273,24 @@ Increasing block size gives richer context but requires more memory and compute:
 Instead of one sequence per update:
 
 ```
-1 sequence → 1 gradient update  ❌ (slow, noisy)
+1 sequence → 1 gradient update  (slow, high-variance)
 ```
 
 We process many in parallel:
 
-```python
-batch_size = 4
 ```
+batch_size = 32  (v2)
 
-```
-(B, T) = (4, 8)
+(B, T) = (32, 64)
 ↓
-4 sequences × 8 tokens each
-processed simultaneously
+32 independent sequences × 64 tokens each
+processed simultaneously on GPU/CPU
 ```
 
 **Benefits:**
-- ⚡ Faster GPU utilization
-- 📊 More stable gradients
-- 🔄 Better training efficiency
+- ⚡ Full utilization of hardware parallelism
+- 📊 More stable, lower-variance gradient estimates
+- 🔄 Faster training per wall-clock second
 
 ---
 
@@ -184,23 +299,35 @@ processed simultaneously
 Raw token IDs carry no semantic meaning:
 
 ```
-cat = 15
-dog = 42
+"cat" = 15,  "dog" = 42,  "kitten" = 89
+These numbers say nothing about similarity
 ```
 
-These numbers tell the model nothing about similarity. Embeddings fix this:
+Embeddings fix this with a **learnable lookup table**:
 
 ```
-Token ID
-  ↓
-Embedding Layer  (learnable lookup table)
-  ↓
-Dense Float Vector
-
-"cat" → [0.12, -0.44, 1.02, 0.77, ...]
+Token ID 15
+   ↓
+Embedding Layer  (learnable, shape: vocab_size × 128)
+   ↓
+[0.12, -0.44, 1.02, 0.77, ..., -0.31]   ← 128-dim float vector
 ```
 
-Over training, vectors for similar concepts cluster closer together in embedding space.
+Over training, vectors for similar concepts cluster together in embedding space:
+
+```
+cos_similarity("cat", "kitten") → high
+cos_similarity("cat", "Paris")  → low
+```
+
+R1GPT uses two embedding types:
+
+| Embedding | Table Shape | Encodes |
+|---|---|---|
+| Token (`tok_emb`) | vocab_size × 128 | What token? |
+| Position (`pos_emb`) | block_size × 128 | Where in sequence? |
+
+These are added together: `x = tok_emb + pos_emb`
 
 ---
 
@@ -209,98 +336,59 @@ Over training, vectors for similar concepts cluster closer together in embedding
 The first model built was a simple Bigram:
 
 ```
-Current Token → Predict Next Token
+Current Token → Predict Next Token  (only 1 token of context)
 ```
 
 **Problem:** No memory of prior context.
 
 ```
 "bank" could mean:
-  ├─ "river bank"    (geography)
-  └─ "bank account"  (finance)
+  ├─ "river bank"    (geography) — if preceded by "river"
+  └─ "bank account"  (finance)   — if preceded by "savings"
+
+Bigram model sees only "bank" → cannot distinguish
 ```
 
-Without context, the model cannot distinguish these. This limitation directly motivates **Attention**.
+This limitation directly motivates **Attention** — the mechanism that gives every token access to the full context window.
 
 ---
 
 ## Attention — Solving the Memory Problem
 
-Attention allows tokens to **communicate** with each other:
-
 ```
 Before Attention:
   Each token processes only itself.
+  Representation of "bank" is the same regardless of context.
 
 After Attention:
-  Each token can attend to all previous tokens
-  and gather relevant information.
+  "bank" in "river bank" → attends strongly to "river"
+  "bank" in "bank account" → attends strongly to "account"
+  Representation is dynamically shaped by context.
 ```
+
+**Flow:**
 
 ```
 Input Tokens
-  ↓
-Attention Mechanism
-  ↓
-Context-Aware Representation
+   ↓
+Q, K, V Projections
+   ↓
+Attention Scores (Q @ Kᵀ / √d_k)
+   ↓
+Causal Mask (no future tokens)
+   ↓
+Softmax → Probabilities
+   ↓
+Weighted Sum of Values
+   ↓
+Context-Aware Token Representations
 ```
-
-This is the foundation of modern LLMs.
-
----
-
-## Query, Key, Value — The Mental Model
-
-The most useful analogy for understanding attention:
-
-```
-┌─────────────────────────────────────────────┐
-│                  Library                    │
-│                                             │
-│  Query  =  "I want a book about physics"    │
-│  Key    =  Book spine labels / topics       │
-│  Value  =  Actual book contents             │
-└─────────────────────────────────────────────┘
-```
-
-Attention computes how strongly each **Query** matches each **Key**, and uses those scores to blend the **Values**.
-
-```python
-self.key   = nn.Linear(n_embd, head_size, bias=False)
-self.query = nn.Linear(n_embd, head_size, bias=False)
-self.value = nn.Linear(n_embd, head_size, bias=False)
-```
-
----
-
-## Attention Matrix
-
-**Shapes involved:**
-
-```
-Q : (B, T, d_k)
-K : (B, T, d_k)
-V : (B, T, d_k)
-```
-
-**Dot-product attention:**
-
-```python
-wei = q @ k.transpose(-2, -1)  # (B, T, T)
-wei = wei * (d_k ** -0.5)      # scale
-wei = softmax(wei)              # probabilities
-out = wei @ v                  # (B, T, d_k)
-```
-
-The `(B, T, T)` weight matrix means: **every token compares itself with every other token.**
-
-> ⚠️ Scaling by `1/√d_k` prevents dot products from growing too large, which would push softmax into vanishing-gradient territory.
 
 ---
 
 ## Causal Masking — No Cheating
 
-GPT is a **decoder-only** model. It must not look at future tokens:
+GPT is a **decoder-only** model. It must predict each token using only the tokens that came before it:
 
 ```
 Predicting position 3:
@@ -308,193 +396,150 @@ Predicting position 3:
   ❌ Must not see: tokens 4, 5, 6, 7
 ```
 
-This is enforced with a lower-triangular mask:
-
-```python
-tril = torch.tril(torch.ones(T, T))
-wei  = wei.masked_fill(tril == 0, float('-inf'))
-```
-
-After `softmax(-inf) = 0`, future positions receive zero attention weight. This ensures **autoregressive** learning.
+Mask visualization:
 
 ```
-Mask visualization (T=4):
-  1  -∞  -∞  -∞
-  1   1  -∞  -∞
-  1   1   1  -∞
-  1   1   1   1
+         attend to:
+         pos0  pos1  pos2  pos3
+  pos0 [  ✓    -∞    -∞    -∞  ]
+  pos1 [  ✓     ✓    -∞    -∞  ]
+  pos2 [  ✓     ✓     ✓    -∞  ]
+  pos3 [  ✓     ✓     ✓     ✓  ]
 ```
+
+`-∞` → `softmax(-∞) = 0` → invisible to the model.
+
+This is what makes the training objective **autoregressive** — each position predicts its successor without access to the answer.
 
 ---
 
-## Softmax Creates Probabilities
+## Dropout — Regularization in v2
 
-Raw attention scores have no probabilistic meaning:
+Dropout is a regularization technique that randomly silences neurons during training:
 
 ```
-Before softmax:  [-2.3,  1.4,  0.8]
-After softmax:   [ 0.05, 0.70, 0.25]
+Without dropout:
+  Network may memorize training data
+  Val loss >> Train loss → overfitting
+
+With dropout (p=0.2):
+  Each neuron has 20% chance of being zeroed per forward pass
+  Network cannot rely on any single pathway
+  Forces distributed, robust representations
 ```
 
-**Properties guaranteed by softmax:**
-- All values ≥ 0
-- All values sum to exactly 1
-- High scores dominate, low scores fade
+R1GPT v2 adds dropout in two places:
+1. After the attention output projection
+2. After the feed-forward second linear layer
+
+**Result:** Train and validation loss track closely throughout 5000 steps.
 
 ---
 
-## Multi-Head Attention
+## Learning Rate Scheduling — StepLR
 
-A single attention head captures one type of relationship. Running **multiple heads in parallel** allows the model to attend to different aspects simultaneously:
+Fixed learning rates have a tradeoff:
+- High LR early → fast progress
+- High LR late → overshooting, instability
 
-```
-Head 1 → Grammar & syntax
-Head 2 → Long-range dependencies
-Head 3 → Entity relationships
-Head 4 → Local sentence structure
-```
-
-Implementation:
+StepLR solves this by halving the LR every 1000 steps:
 
 ```python
-out = torch.cat([h(x) for h in self.heads], dim=-1)  # concat
-out = self.proj(out)  # project back to n_embd
-```
-
-> This is one of the core innovations that made Transformers dominant.
-
----
-
-## Feed-Forward Networks
-
-After attention, tokens have gathered information from each other. Now each token **thinks independently**:
-
-```
-Attention: "Communicate"
-Feed-Forward: "Think"
-```
-
-```python
-self.net = nn.Sequential(
-    nn.Linear(n_embd, 4 * n_embd),   # expand
-    nn.ReLU(),                         # non-linearity
-    nn.Linear(4 * n_embd, n_embd)    # compress back
+scheduler = torch.optim.lr_scheduler.StepLR(
+    optimizer,
+    step_size=1000,
+    gamma=0.5
 )
 ```
 
-The **4× expansion** gives the model room to learn complex non-linear combinations of attended features.
+```
+Step     LR
+────────────────────────────
+0        0.001000
+1000     0.000500   (÷2)
+2000     0.000250   (÷2)
+3000     0.000125   (÷2)
+4000     0.000063   (÷2)
+5000     0.000031   (÷2)
+```
+
+This allows the optimizer to make large steps early when far from the optimum, and fine-tune carefully later.
 
 ---
 
-## Residual Connections
+## Validation Loss Monitoring
 
-One of the most important training tricks:
+To detect overfitting and monitor generalization, a 90/10 train/val split is used:
 
 ```python
-x = x + layer(x)   # residual connection
+n = int(0.9 * len(data))
+train_data = data[:n]
+val_data   = data[n:]
 ```
 
-Instead of discarding original information:
-
-```
-Without residual:  x → layer → new_x   (original lost)
-With residual:     x → layer → x + new_x  (original preserved)
-```
-
-**Why it matters:**
-- 🌊 Gradients flow directly from output to input
-- 🏗️ Enables training very deep networks
-- 🎯 Easier optimization landscape
-
----
-
-## Layer Normalization
-
-Activations across a layer can have wildly different scales. LayerNorm stabilizes this:
-
-```
-Raw activations: [0.002, 4500, -1.2, 890]   ← unstable
-After LayerNorm: [-0.3,   1.1, -0.8,  0.9]  ← stable
-```
-
-**Pre-LayerNorm (used in R1GPT):**
-
-```
-LayerNorm → Attention → + Residual
-LayerNorm → FeedForward → + Residual
-```
-
-Applying normalization *before* the sublayer keeps the residual path clean, which improves gradient flow in deep architectures.
-
----
-
-## Transformer Block — The Full Picture
-
-```
-Input x
-  │
-  ├─→ LayerNorm(x) → MultiHeadAttention ─→ + x  (residual)
-  │                                          │
-  └─→ LayerNorm(x) → FeedForward        ─→ + x  (residual)
-                                             │
-                                           Output
-```
+The `estimate_loss()` function computes average loss over 200 batches without updating gradients:
 
 ```python
-def forward(self, x):
-    x = x + self.sa(self.ln1(x))    # attention sublayer
-    x = x + self.ffwd(self.ln2(x))  # ffwd sublayer
-    return x
+@torch.no_grad()
+def estimate_loss():
+    out = {}
+    model.eval()
+    for split in ['train', 'val']:
+        losses = torch.zeros(200)
+        for k in range(200):
+            X, Y = get_batch(split)
+            logits, loss = model(X, Y)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
 ```
 
-Stacking multiple blocks creates increasingly powerful representations.
+**R1GPT v2 results (close tracking = healthy training):**
+
+```
+Step     Train   Val     Gap
+─────────────────────────────────
+0        5.067   5.066   0.001 ✅
+500      2.036   1.970   0.066 ✅
+1000     1.823   1.753   0.070 ✅
+2000     1.665   1.599   0.066 ✅
+3500     1.585   1.523   0.062 ✅
+5000     ~1.56   ~1.50   ~0.06 ✅
+```
+
+> Small, consistent gap between train and val loss confirms dropout is working.
 
 ---
 
-## Positional Embeddings
-
-Transformers process all tokens **in parallel**, which means position information is lost by default:
+## Training Loop — Complete Picture
 
 ```
-"good not" vs "not good"  →  identical to a pure Transformer
+┌────────────────────────────────────────────────────┐
+│                  Training Loop (×5000)             │
+│                                                    │
+│  get_batch("train") → x (B,T), y (B,T)            │
+│       ↓                                            │
+│  model(x, y) → logits (B,T,vocab), loss (scalar)  │
+│       ↓                                            │
+│  optimizer.zero_grad()   ← clear old gradients     │
+│       ↓                                            │
+│  loss.backward()         ← compute new gradients   │
+│       ↓                                            │
+│  optimizer.step()        ← update all weights      │
+│       ↓                                            │
+│  scheduler.step()        ← decay learning rate     │
+│       ↓                                            │
+│  if iter % 500 == 0:                               │
+│      losses = estimate_loss()                      │
+│      print(train loss, val loss, lr)               │
+│                                                    │
+└────────────────────────────────────────────────────┘
+       ↓  after 5000 steps
+torch.save(model.state_dict(), "r1gpt_v2.pt")
 ```
 
-Fix: add a learnable positional embedding to each token:
-
-```python
-x = tok_emb + pos_emb
-```
-
-| Embedding | Encodes |
-|-----------|---------|
-| `tok_emb` | What token? |
-| `pos_emb` | Where in the sequence? |
-
-The model learns both simultaneously.
-
----
-
-## Training Loop
-
-```
-┌─────────────────────────────────────┐
-│           Training Loop             │
-│                                     │
-│  get_batch()                        │
-│       ↓                             │
-│  forward(x, y)  → logits, loss      │
-│       ↓                             │
-│  optimizer.zero_grad()              │
-│       ↓                             │
-│  loss.backward()  → gradients       │
-│       ↓                             │
-│  optimizer.step() → update weights  │
-│       ↓                             │
-│  Repeat ×1000                       │
-└─────────────────────────────────────┘
-```
-
-**Optimizer used:** `AdamW` — the standard for modern Transformer training, combining adaptive learning rates with weight decay.
+**Optimizer:** `AdamW` — combines Adam's adaptive learning rates with weight decay (L2 regularization on parameters). Standard for modern Transformer training.
 
 ---
 
@@ -504,25 +549,135 @@ Training and generation are **fundamentally different processes**:
 
 ```
 Training:
-  Input + Target → Compare → Learn (backwards pass)
+  Input + Target → Forward pass → Loss → Backward pass → Update weights
+  (supervised, both input and target known)
 
 Generation:
-  Input → Predict → Append → Repeat (no backwards pass)
+  Input → Forward pass → Sample → Append → Repeat
+  (unsupervised, no target, no backward pass)
 ```
 
-This loop is called **Autoregressive Generation** — the "G" in GPT stands for *Generative*, referring to exactly this process.
+### Top-K Sampling with Temperature
+
+R1GPT v2 uses top-k sampling with temperature for generation:
 
 ```python
 def generate(self, idx, max_new_tokens):
     for _ in range(max_new_tokens):
-        idx_cond = idx[:, -block_size:]       # trim context
+        idx_cond = idx[:, -block_size:]
         logits, _ = self(idx_cond)
-        logits = logits[:, -1, :]             # last token only
-        probs = F.softmax(logits, dim=-1)     # distribution
-        idx_next = torch.multinomial(probs, 1) # sample
+        logits = logits[:, -1, :]       # last position
+
+        temperature = 0.5               # ← controls randomness
+        logits = logits / temperature
+
+        k = 10
+        v, ix = torch.topk(logits, k)  # ← keep only top 10
+        out = torch.full_like(logits, float('-inf'))
+        out.scatter_(1, ix, v)
+
+        probs = torch.softmax(out, dim=-1)
+        idx_next = torch.multinomial(probs, 1)
         idx = torch.cat([idx, idx_next], dim=1)
     return idx
 ```
+
+**Temperature effect:**
+
+```
+temperature = 2.0:  flat distribution → very random, creative but incoherent
+temperature = 1.0:  raw model distribution → balanced
+temperature = 0.5:  sharpened distribution → more focused, repetitive
+temperature → 0:    argmax → always pick the most likely token (greedy)
+```
+
+**Top-K effect:**
+
+```
+k = 1:  always pick the best → greedy, deterministic
+k = 10: sample from top 10 → controlled diversity (R1GPT setting)
+k = vocab_size: full distribution → maximum randomness
+```
+
+---
+
+## The Entire Forward Pass
+
+```
+Input text: "The quick"
+   ↓  encode()
+[42, 18, 91, 7, 63]       ← token IDs (BPE)
+   ↓
+tok_emb = embedding_table[ids]    (5, 128)
+pos_emb = pos_table[0:5]          (5, 128)
+x = tok_emb + pos_emb             (5, 128)
+   ↓
+Block 1: x = x + MHA(LN(x)); x = x + FFWD(LN(x))
+Block 2: x = x + MHA(LN(x)); x = x + FFWD(LN(x))
+Block 3: x = x + MHA(LN(x)); x = x + FFWD(LN(x))
+Block 4: x = x + MHA(LN(x)); x = x + FFWD(LN(x))
+   ↓
+x = LayerNorm(x)                  (5, 128)
+   ↓
+logits = lm_head(x)               (5, vocab_size)  ← 283 chars
+   ↓
+Next token distribution over vocabulary
+```
+
+---
+
+## What WikiText Taught the Model
+
+After 5000 training steps on 13.1M characters of Wikipedia-style text:
+
+**Learned patterns:**
+```
+ = =                           ← WikiText heading style
+ The Criship 's lear ...        ← Wikipedia-style prose (partially learned)
+ = = = = = = =                 ← Section headings
+ When the twing the tale ...    ← Sentence structure
+```
+
+**What works:**
+- ✅ Sentence-level structure (capital letters, periods, commas)
+- ✅ Common English word fragments ("the", "in", "a", "of")
+- ✅ WikiText-specific formatting (= headings =)
+
+**What needs improvement:**
+- ❌ Proper nouns (invented nonsense words)
+- ❌ Long-range coherence
+- ❌ Factual accuracy
+
+These limitations stem from the small model size (~873K parameters vs GPT-2's 117M+) and limited training.
+
+---
+
+## Final Outcome — R1GPT v2
+
+| Component | v1 | v2 |
+|---|---|---|
+| Character Tokenization | ✅ | ✅ |
+| BPE Tokenizer | — | ✅ |
+| Vocabulary Construction | ✅ | ✅ |
+| Dataset Batching | ✅ | ✅ |
+| Train/Val Split | — | ✅ |
+| Self-Attention Head | ✅ | ✅ |
+| Multi-Head Attention | ✅ | ✅ |
+| Feed-Forward Network | ✅ | ✅ |
+| Dropout Regularization | — | ✅ |
+| Residual Connections | ✅ | ✅ |
+| Layer Normalization | ✅ | ✅ |
+| Transformer Block | ✅ | ✅ (×4) |
+| Positional Embeddings | ✅ | ✅ |
+| Cross-Entropy Loss | ✅ | ✅ |
+| AdamW Optimizer | ✅ | ✅ |
+| Learning Rate Scheduler | — | ✅ (StepLR) |
+| Validation Loss Monitoring | — | ✅ |
+| Model Checkpointing | — | ✅ |
+| Temperature + Top-K Sampling | — | ✅ |
+| Autoregressive Generation | ✅ | ✅ |
+
+> **Result: A complete, production-style GPT training pipeline — implemented from scratch in PyTorch, trained on 13M characters of real-world text.**
 
 ---
 
@@ -533,49 +688,19 @@ Building a GPT from scratch revealed that **large language models are not magic*
 They are composed of understandable components:
 
 ```
-"hello world\ni love ai\ngpt is amazing"
-  ↓
-Character Tokenization       (text → integers)
-  ↓
-Embeddings                   (integers → vectors)
-  ↓
-Positional Embeddings        (add position signal)
-  ↓
-Multi-Head Attention ×3      (tokens communicate)
-  ↓
-Feed-Forward Networks ×3     (tokens process)
-  ↓
-LayerNorm + Residuals        (stabilize training)
-  ↓
-LM Head                      (vectors → logits)
-  ↓
-Cross-Entropy Loss            (compare with target)
-  ↓
-AdamW Gradient Update        (learn)
-  ↓
-Autoregressive Generation    (produce text)
+Input Text
+   ↓  BPE Tokenization           (text → integer sequences)
+   ↓  Token + Positional Embeddings  (integers → vectors + position)
+   ↓  ×4 Transformer Blocks
+      ├─ Multi-Head Attention     (tokens communicate via Q, K, V)
+      ├─ Feed-Forward Network     (each token processes independently)
+      ├─ Layer Normalization      (stabilizes activation scale)
+      ├─ Residual Connections     (gradient highway through depth)
+      └─ Dropout                  (prevents overfitting)
+   ↓  LM Head                    (vectors → vocabulary logits)
+   ↓  Cross-Entropy Loss          (compare prediction to target)
+   ↓  AdamW + StepLR              (update weights, decay LR)
+   ↓  Autoregressive Sampling     (temperature + top-k → text)
 ```
 
-Every component serves a specific, understandable purpose. Understanding them individually makes modern AI systems significantly less mysterious.
-
----
-
-## Final Outcome — R1GPT v1
-
-| Component | Status |
-|-----------|--------|
-| Character Tokenization | ✅ |
-| Vocabulary Construction | ✅ |
-| Dataset Batching | ✅ |
-| Self-Attention Head | ✅ |
-| Multi-Head Attention | ✅ |
-| Feed-Forward Network | ✅ |
-| Residual Connections | ✅ |
-| Layer Normalization | ✅ |
-| Transformer Block | ✅ |
-| Positional Embeddings | ✅ |
-| Cross-Entropy Loss | ✅ |
-| AdamW Optimizer | ✅ |
-| Autoregressive Generation | ✅ |
-
-> **Result: A fully functional GPT-style Transformer — implemented from scratch in PyTorch.**
+Every component has a specific, understandable purpose. Understanding them individually makes modern AI systems significantly less mysterious — and the path to scaling them up becomes clear.
