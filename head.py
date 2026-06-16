@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-with open("input.txt", "r", encoding="utf-8") as f:
+with open("wikitext.txt", "r", encoding="utf-8") as f:
     text = f.read()
 
 print(len(text))
@@ -19,12 +19,16 @@ def decode(s):
     return "".join([itos[i] for i in s])
 
 data = torch.tensor(encode(text))
+n = int(0.9 * len(data))
+train_data = data[:n]
+val_data = data[n:]
 
 batch_size = 32
 block_size = 64
 max_iters = 5000
 
-def get_batch():
+def get_batch(split):
+    data = train_data if split == "train" else val_data
     ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack([data[i:i+block_size] for i in ix])
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
@@ -33,6 +37,7 @@ def get_batch():
 n_embd = 128
 n_head = 4
 n_layer = 4
+dropout = 0.2
 head_size = n_embd // n_head
 
 class Head(nn.Module):
@@ -93,6 +98,7 @@ class MultiHeadAttention(nn.Module):
             [Head(head_size) for _ in range(num_heads)]
         )
         self.proj = nn.Linear(num_heads * head_size, n_embd)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         out = torch.cat(
@@ -101,6 +107,7 @@ class MultiHeadAttention(nn.Module):
         )
 
         out = self.proj(out)
+        out = self.dropout(out)
         return out
 
 mha = MultiHeadAttention(
@@ -122,7 +129,8 @@ class FeedForward(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
-            nn.Linear(4 * n_embd, n_embd)
+            nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout)
         )
 
     def forward(self, x):
@@ -218,10 +226,13 @@ class GPTLanguageModel(nn.Module):
             idx_cond = idx[:, -block_size:]
             logits, loss = self(idx_cond)
             logits = logits[:, -1, :]
-            probs = torch.softmax(
-                logits,
-                dim=-1
-            )
+            temperature = 0.5
+            logits = logits / temperature
+            k = 10
+            v, ix = torch.topk(logits, k)
+            out = torch.full_like(logits, float('-inf'))
+            out.scatter_(1, ix, v)
+            probs = torch.softmax(out, dim=-1)
             idx_next = torch.multinomial(
                 probs,
                 num_samples=1
@@ -235,7 +246,14 @@ class GPTLanguageModel(nn.Module):
             )
         return idx
 
+print(get_batch("train")[0].shape)
+print(get_batch("val")[0].shape)
+
 model = GPTLanguageModel(vocab_size=vocab_size)
+# model.load_state_dict(
+#     torch.load("r1gpt_v2.pt")
+# )
+print(model)
 print(
     sum(
         p.numel()
@@ -243,14 +261,33 @@ print(
     )
 )
 
+@torch.no_grad()
+def estimate_loss():
+    out = {}
+    model.eval()
+    for split in ["train", "val"]:
+        losses = torch.zeros(200)
+        for k in range(200):
+            X, Y = get_batch(split)
+            logits, loss = model(X, Y)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
+
 optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=1e-3
 )
+scheduler = torch.optim.lr_scheduler.StepLR(
+    optimizer,
+    step_size=1000,
+    gamma=0.5
+)
 
 for iter in range(max_iters):
 
-    xb, yb = get_batch()
+    xb, yb = get_batch("train")
 
     logits, loss = model(
         xb,
@@ -262,11 +299,23 @@ for iter in range(max_iters):
     loss.backward()
 
     optimizer.step()
+    scheduler.step()
 
     if iter % 500 == 0:
-        print(iter, loss.item())
+        losses = estimate_loss()
+        print(
+            f"step {iter}: "
+            f"train loss {losses['train']:.4f}, "
+            f"val loss {losses['val']:.4f}, "
+            f"lr {scheduler.get_last_lr()[0]:.6f}"
+        )
 
 print(loss.item())
+
+torch.save(
+    model.state_dict(),
+    "r1gpt_v2.pt"
+)
 
 context = torch.zeros(
     (1,1),
@@ -275,7 +324,7 @@ context = torch.zeros(
 
 generated = model.generate(
     context,
-    max_new_tokens=100
+    max_new_tokens=200
 )
 
 print(
