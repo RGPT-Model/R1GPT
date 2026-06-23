@@ -278,6 +278,8 @@ R1GPT/
 │                        # Block, GPTLanguageModel, estimate_loss(),
 │                        # StepLR scheduler, checkpoint saving
 │
+├── chat.py              # Interactive CLI interface to chat/generate with model
+│
 ├── tokenizer_v2.py      # Custom BPE tokenizer pipeline
 │                        # get_stats(), merge(), encode(), decode()
 │                        # Configurable dataset via dataset_file var
@@ -359,6 +361,12 @@ python head.py
 ```
 
 Loss is reported every 500 steps. Generated text is printed at the end.
+
+**6. Chat with the trained model**
+
+```bash
+python chat.py
+```
 
 ---
 

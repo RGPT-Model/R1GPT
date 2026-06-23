@@ -6,17 +6,14 @@ with open("wikitext.txt", "r", encoding="utf-8") as f:
 
 print(len(text))
 
-chars = sorted(list(set(text)))
-vocab_size = len(chars)
+import tokenizer_v2
 
-stoi = { ch:i for i,ch in enumerate(chars) }
-itos = { i:ch for i,ch in enumerate(chars) }
-
-def encode(s):
-    return [stoi[c] for c in s]
-
-def decode(s):
-    return "".join([itos[i] for i in s])
+vocab_size = tokenizer_v2.vocab_size
+stoi = tokenizer_v2.stoi
+itos = tokenizer_v2.itos
+encode = tokenizer_v2.encode
+decode = tokenizer_v2.decode
+chars = tokenizer_v2.vocab
 
 data = torch.tensor(encode(text))
 n = int(0.9 * len(data))
