@@ -125,32 +125,6 @@
       content: "";
     }
 
-    .landing[data-motion="reduced"][data-video="fallback"] .hero-video { display: none; }
-
-    .video-play-button {
-      position: absolute;
-      z-index: 5;
-      top: 108px;
-      right: clamp(18px, 4.5vw, 72px);
-      display: inline-flex;
-      min-height: 44px;
-      align-items: center;
-      justify-content: center;
-      padding: 0 15px;
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      border-radius: 999px;
-      background: rgba(17, 19, 21, 0.82);
-      color: #fff;
-      font: inherit;
-      font-size: 12px;
-      cursor: pointer;
-      pointer-events: auto;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .video-play-button:hover { background: #111315; }
-    .video-play-button[hidden] { display: none; }
-
     .site-header {
       position: fixed;
       z-index: 10;
@@ -1247,8 +1221,6 @@
       .backdrop-poster,
       .hero-video { object-position: 38% center; }
 
-      .video-play-button { top: 82px; right: 18px; }
-
       .backdrop::after {
         background: linear-gradient(90deg, rgba(255, 255, 255, 0.68) 0%, rgba(255, 255, 255, 0.47) 66%, rgba(255, 255, 255, 0.16) 100%);
       }
@@ -1467,14 +1439,13 @@
 
   <main id="main-content">
 
-  <div class="landing" id="top" data-motion="full">
+  <div class="landing" id="top">
     <div class="backdrop" aria-hidden="true">
       <img class="backdrop-poster" src="resources/img/rgpt-landing-poster.webp" alt="" fetchpriority="high" decoding="async">
-      <video class="hero-video" id="hero-video" muted autoplay loop playsinline webkit-playsinline preload="none" poster="resources/img/rgpt-landing-poster.webp" aria-hidden="true" tabindex="-1">
-        <source data-src="resources/vid/RGPTlandingbg.mp4" type="video/mp4">
+      <video class="hero-video" id="hero-video" muted autoplay loop playsinline webkit-playsinline preload="auto" poster="resources/img/rgpt-landing-poster.webp" aria-hidden="true" tabindex="-1">
+        <source src="resources/vid/RGPTlandingbg.mp4" type="video/mp4">
       </video>
     </div>
-    <button class="video-play-button" id="video-play-button" type="button" aria-label="Play background video" hidden>Play background video</button>
 
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-stage">
@@ -1742,78 +1713,32 @@
     (() => {
       const landing = document.querySelector('.landing');
       const video = document.getElementById('hero-video');
-      const source = video.querySelector('source');
-      const videoPlayButton = document.getElementById('video-play-button');
-      const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
-      let sourceAttached = false;
-
-      function showVideoFallback() {
-        landing.dataset.video = 'fallback';
-        videoPlayButton.hidden = false;
-      }
 
       function playBackgroundVideo() {
         video.muted = true;
         video.defaultMuted = true;
+        video.loop = true;
         video.playsInline = true;
-        video.setAttribute('muted', '');
-        video.setAttribute('playsinline', '');
-        video.setAttribute('webkit-playsinline', '');
         landing.dataset.video = 'loading';
 
         try {
           const playback = video.play();
-          playback?.catch(showVideoFallback);
+          playback?.catch(() => { landing.dataset.video = 'fallback'; });
         } catch {
-          showVideoFallback();
+          landing.dataset.video = 'fallback';
         }
-      }
-
-      function attachVideoSource(userInitiated = false) {
-        if (motionPreference.matches && !userInitiated) {
-          showVideoFallback();
-          return;
-        }
-        if (sourceAttached) {
-          playBackgroundVideo();
-          return;
-        }
-        source.src = source.dataset.src;
-        sourceAttached = true;
-        video.preload = 'metadata';
-        video.muted = true;
-        video.loop = true;
-        video.playsInline = true;
-        video.autoplay = !motionPreference.matches;
-        video.load();
-        playBackgroundVideo();
-      }
-
-      function applyMotionPreference() {
-        if (motionPreference.matches) {
-          landing.dataset.motion = 'reduced';
-          video.autoplay = false;
-          video.pause();
-          showVideoFallback();
-          return;
-        }
-        landing.dataset.motion = 'full';
-        attachVideoSource();
       }
 
       video.addEventListener('playing', () => {
         landing.dataset.video = 'playing';
-        videoPlayButton.hidden = true;
       });
-      video.addEventListener('error', showVideoFallback);
-      videoPlayButton.addEventListener('click', () => attachVideoSource(true));
-      motionPreference.addEventListener?.('change', applyMotionPreference);
-      applyMotionPreference();
+      video.addEventListener('error', () => { landing.dataset.video = 'fallback'; });
+      playBackgroundVideo();
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           video.pause();
-        } else if (!motionPreference.matches && sourceAttached) {
+        } else {
           playBackgroundVideo();
         }
       });
