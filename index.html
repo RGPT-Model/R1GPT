@@ -19,7 +19,7 @@
       --ink: #111315;
       --body-ink: #414448;
       --muted-ink: #85898e;
-      --quiet-ink: #686c71;
+      --quiet-ink: #62666b;
       --edge: rgba(47, 50, 54, 0.17);
       --frost: rgba(255, 255, 255, 0.58);
       --font: "Geist", "Helvetica Neue", Arial, sans-serif;
@@ -121,7 +121,7 @@
       position: absolute;
       z-index: 2;
       inset: 0;
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.11) 34%, rgba(255, 255, 255, 0) 72%);
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.24) 38%, rgba(255, 255, 255, 0) 76%);
       content: "";
     }
 
@@ -162,12 +162,6 @@
       height: 58px;
       flex: 0 0 auto;
       object-fit: contain;
-      transform-origin: center;
-      animation: rgpt-logo-spin 20s linear infinite;
-    }
-
-    @keyframes rgpt-logo-spin {
-      to { transform: rotate(360deg); }
     }
 
     .brand-name {
@@ -239,7 +233,9 @@
 
     .pill-button:active,
     .send-button:active,
-    .action-chip:active { transform: scale(0.98); }
+    .action-chip:active,
+    .attach-button:active,
+    .menu-toggle:active { transform: scale(0.97); transition-duration: 100ms; }
 
     .login-button {
       min-width: 122px;
@@ -273,9 +269,13 @@
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.48);
       cursor: pointer;
+      transition: background-color 160ms ease, transform 160ms ease;
     }
 
     .menu-toggle svg { width: 21px; height: 21px; }
+    .menu-toggle:hover { background: rgba(255, 255, 255, 0.8); }
+    .menu-toggle[aria-expanded="true"] .menu-icon,
+    .menu-toggle[aria-expanded="false"] .close-icon { display: none; }
 
     main { position: relative; z-index: 1; }
 
@@ -354,6 +354,12 @@
       box-shadow: 0 10px 28px rgba(29, 31, 34, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
+      transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+    }
+
+    .prompt-box:focus-within {
+      border-color: rgba(31, 34, 37, 0.4);
+      box-shadow: 0 0 0 3px rgba(31, 34, 37, 0.12), 0 10px 28px rgba(29, 31, 34, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
     }
 
     .attach-button {
@@ -456,10 +462,15 @@
       transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
     }
 
-    .action-chip:hover,
-    .action-chip[aria-pressed="true"] {
+    .action-chip:hover {
       border-color: rgba(45, 48, 51, 0.36);
       background: rgba(255, 255, 255, 0.68);
+    }
+
+    .action-chip[aria-pressed="true"] {
+      border-color: rgba(31, 34, 37, 0.52);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 2px 9px rgba(29, 31, 34, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
     }
 
     .action-chip svg { width: 19px; height: 19px; flex: 0 0 auto; }
@@ -710,7 +721,7 @@
     }
 
     .capability-index {
-      color: #777b80;
+      color: #62666b;
       font-size: 12px;
       letter-spacing: 0.1em;
     }
@@ -786,7 +797,7 @@
     }
 
     .process-number {
-      color: #777b80;
+      color: #62666b;
       font-size: 12px;
       letter-spacing: 0.11em;
     }
@@ -921,7 +932,7 @@
     }
 
     .roadmap-row > span:first-child {
-      color: #777b80;
+      color: #62666b;
       font-size: 12px;
       letter-spacing: 0.12em;
     }
@@ -1391,13 +1402,29 @@
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .brand img { animation: none; }
       *, *::before, *::after {
         scroll-behavior: auto !important;
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
       }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .site-header.is-scrolled,
+      .primary-nav,
+      .prompt-box,
+      .action-chip,
+      .status-card,
+      .capability-card,
+      .access-panel {
+        background: #f4f4f3;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+
+      .model-caveat { background: #292b2e; }
+      .action-chip[aria-pressed="true"] { background: #fff; }
     }
   </style>
 </head>
@@ -1430,8 +1457,11 @@
         </svg>
       </a>
       <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="primary-nav">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true" focusable="false">
+        <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true" focusable="false">
           <path d="M4 7h16M4 12h16M4 17h16"></path>
+        </svg>
+        <svg class="close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true" focusable="false">
+          <path d="m6 6 12 12M18 6 6 18"></path>
         </svg>
       </button>
     </div>
@@ -1442,8 +1472,8 @@
   <div class="landing" id="top">
     <div class="backdrop" aria-hidden="true">
       <img class="backdrop-poster" src="resources/img/rgpt-landing-poster.webp" alt="" fetchpriority="high" decoding="async">
-      <video class="hero-video" id="hero-video" muted autoplay loop playsinline webkit-playsinline preload="auto" poster="resources/img/rgpt-landing-poster.webp" aria-hidden="true" tabindex="-1">
-        <source src="resources/vid/RGPTlandingbg.mp4" type="video/mp4">
+      <video class="hero-video" id="hero-video" muted loop playsinline webkit-playsinline preload="none" poster="resources/img/rgpt-landing-poster.webp" aria-hidden="true" tabindex="-1">
+        <source data-src="resources/vid/RGPTlandingbg.mp4" type="video/mp4">
       </video>
     </div>
 
@@ -1470,7 +1500,7 @@
                 </button>
               </div>
               <p class="prompt-status">Preview only · hosted API is planned, not live yet</p>
-              <p class="attachment-note" id="attachment-note" hidden></p>
+              <p class="attachment-note" id="attachment-note" role="status" aria-live="polite" aria-atomic="true" hidden></p>
 
               <div class="action-list" id="use-cases" role="group" aria-label="Choose a prompt type">
                 <button class="action-chip" type="button" data-mode="write" data-placeholder="What would you like to write?" aria-pressed="false">
@@ -1505,9 +1535,9 @@
           </div>
         </div>
       </section>
-    <div class="hero-footer" role="group" aria-label="Page details">
+    <div class="hero-footer">
       <span class="footer-mark">Scroll to explore</span>
-        <span class="footer-next">Built for student projects</span>
+      <span class="footer-next">Built for student projects</span>
     </div>
   </div>
 
@@ -1713,8 +1743,12 @@
     (() => {
       const landing = document.querySelector('.landing');
       const video = document.getElementById('hero-video');
+      const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      let motionEnabled = !motionPreference.matches && !connection?.saveData;
 
       function playBackgroundVideo() {
+        if (!motionEnabled) return;
         video.muted = true;
         video.defaultMuted = true;
         video.loop = true;
@@ -1722,26 +1756,55 @@
         landing.dataset.video = 'loading';
 
         try {
+          const source = video.querySelector('source');
+          if (!source.src) {
+            source.src = source.dataset.src;
+            video.load();
+          }
           const playback = video.play();
-          playback?.catch(() => { landing.dataset.video = 'fallback'; });
+          playback?.catch(() => {
+            motionEnabled = false;
+            landing.dataset.video = 'fallback';
+          });
         } catch {
+          motionEnabled = false;
           landing.dataset.video = 'fallback';
         }
       }
 
       video.addEventListener('playing', () => {
+        if (!motionEnabled) {
+          video.pause();
+          return;
+        }
         landing.dataset.video = 'playing';
       });
-      video.addEventListener('error', () => { landing.dataset.video = 'fallback'; });
-      playBackgroundVideo();
+      video.addEventListener('error', () => {
+        motionEnabled = false;
+        landing.dataset.video = 'fallback';
+      });
+      function syncMotionPreference() {
+        motionEnabled = !motionPreference.matches && !connection?.saveData;
+        if (motionEnabled) {
+          if (!document.hidden) playBackgroundVideo();
+        } else {
+          video.pause();
+          landing.dataset.video = 'fallback';
+        }
+      }
+
+      motionPreference.addEventListener('change', syncMotionPreference);
+      connection?.addEventListener?.('change', syncMotionPreference);
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           video.pause();
-        } else {
+        } else if (motionEnabled) {
           playBackgroundVideo();
         }
       });
+
+      if (motionEnabled) playBackgroundVideo();
 
       const message = document.getElementById('app-message');
       let messageTimeout;
