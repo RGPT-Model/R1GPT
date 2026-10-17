@@ -1,2292 +1,1872 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RGPT Model — Building Language Models From First Principles</title>
-<meta name="description" content="RGPT Model is an independent AI research and engineering initiative focused on understanding, building, and evolving GPT-style architectures from first principles.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --black: #0a0a0a;
-    --off-black: #111111;
-    --dark: #1a1a1a;
-    --mid: #2e2e2e;
-    --border: #262626;
-    --muted: #4a4a4a;
-    --subtle: #888888;
-    --light-muted: #b0b0b0;
-    --light: #e8e8e8;
-    --off-white: #f5f4f0;
-    --white: #ffffff;
-    --accent: #e8e4d9;
-    --serif: 'Instrument Serif', Georgia, serif;
-    --mono: 'DM Mono', 'Courier New', monospace;
-    --sans: 'Geist', system-ui, sans-serif;
-  }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--black);
-    color: var(--off-white);
-    font-family: var(--sans);
-    font-size: 15px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-
-  /* ---- NOISE TEXTURE ---- */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.35;
-  }
-
-  /* ---- NAV ---- */
-  nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 48px;
-    height: 56px;
-    background: rgba(10,10,10,0.92);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .nav-logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0.08em;
-    color: var(--off-white);
-    text-decoration: none;
-    text-transform: uppercase;
-  }
-
-  .nav-logo span { color: var(--subtle); }
-
-  .nav-links {
-    display: flex;
-    gap: 36px;
-    list-style: none;
-  }
-
-  .nav-links a {
-    font-family: var(--sans);
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--subtle);
-    text-decoration: none;
-    letter-spacing: 0.02em;
-    transition: color 0.2s;
-  }
-
-  .nav-links a:hover { color: var(--off-white); }
-
-  .nav-cta {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--black) !important;
-    background: var(--off-white);
-    padding: 7px 16px;
-    text-decoration: none;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    transition: background 0.2s, color 0.2s !important;
-  }
-
-  .nav-cta:hover { background: var(--accent) !important; color: var(--black) !important; }
-
-  /* ---- HERO ---- */
-  #hero {
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-bottom: 1px solid var(--border);
-    padding-top: 56px;
-  }
-
-  .hero-left {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 80px 64px 80px 48px;
-    border-right: 1px solid var(--border);
-  }
-
-  .hero-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--subtle);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 32px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .hero-label::before {
-    content: '';
-    display: block;
-    width: 24px;
-    height: 1px;
-    background: var(--muted);
-  }
-
-  .hero-h1 {
-    font-family: var(--serif);
-    font-size: clamp(42px, 5vw, 64px);
-    font-weight: 400;
-    font-style: normal;
-    line-height: 1.1;
-    color: var(--off-white);
-    letter-spacing: -0.02em;
-    margin-bottom: 32px;
-  }
-
-  .hero-h1 em {
-    font-style: italic;
-    color: var(--light-muted);
-  }
-
-  .hero-desc {
-    font-family: var(--sans);
-    font-size: 15px;
-    font-weight: 300;
-    color: var(--subtle);
-    line-height: 1.75;
-    max-width: 480px;
-    margin-bottom: 48px;
-  }
-
-  .hero-actions {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-
-  .btn-primary {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--black);
-    background: var(--off-white);
-    padding: 12px 28px;
-    text-decoration: none;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    transition: background 0.2s;
-    border: 1px solid transparent;
-  }
-
-  .btn-primary:hover { background: var(--accent); }
-
-  .btn-secondary {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--subtle);
-    background: transparent;
-    padding: 12px 28px;
-    text-decoration: none;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .btn-secondary:hover { color: var(--off-white); border-color: var(--muted); }
-
-  .hero-right {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 80px 48px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* Architecture SVG diagram */
-  .arch-diagram {
-    width: 100%;
-    max-width: 360px;
-  }
-
-  .hero-meta {
-    position: absolute;
-    bottom: 32px;
-    right: 48px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    text-align: right;
-    line-height: 1.8;
-  }
-
-  /* ---- SECTION LAYOUT ---- */
-  section { border-bottom: 1px solid var(--border); }
-
-  .section-header {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .section-number {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    padding: 28px 32px;
-    border-right: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-  }
-
-  .section-title-block {
-    padding: 28px 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .section-title {
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--off-white);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  .section-status {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-  }
-
-  /* ---- MODELS SECTION ---- */
-  #models .model-grid {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-  }
-
-  .model-sidebar {
-    border-right: 1px solid var(--border);
-    padding: 48px 32px;
-  }
-
-  .model-sidebar h2 {
-    font-family: var(--serif);
-    font-size: 28px;
-    font-weight: 400;
-    color: var(--off-white);
-    line-height: 1.2;
-    margin-bottom: 16px;
-  }
-
-  .model-sidebar p {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    line-height: 1.7;
-  }
-
-  .models-list {
-    padding: 0;
-  }
-
-  .model-row {
-    display: grid;
-    grid-template-columns: 140px 1fr 160px 140px;
-    align-items: center;
-    padding: 32px 48px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.2s;
-  }
-
-  .model-row:hover { background: rgba(255,255,255,0.02); }
-  .model-row:last-child { border-bottom: none; }
-
-  .model-id {
-    font-family: var(--mono);
-    font-size: 20px;
-    font-weight: 400;
-    color: var(--off-white);
-    letter-spacing: -0.01em;
-  }
-
-  .model-desc {
-    padding: 0 32px;
-  }
-
-  .model-desc strong {
-    display: block;
-    font-family: var(--sans);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--off-white);
-    margin-bottom: 4px;
-  }
-
-  .model-desc span {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-  }
-
-  .model-tech {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    line-height: 1.8;
-    letter-spacing: 0.04em;
-  }
-
-  .model-badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 5px 12px;
-    border: 1px solid;
-    text-align: center;
-    width: fit-content;
-  }
-
-  .badge-live { border-color: #4a4a4a; color: var(--off-white); background: rgba(255,255,255,0.04); }
-  .badge-dev { border-color: var(--border); color: var(--muted); }
-  .badge-planned { border-color: var(--border); color: var(--muted); opacity: 0.5; }
-
-  /* ---- ARCHITECTURE SECTION ---- */
-  #architecture .arch-content {
-    display: grid;
-    grid-template-columns: 200px 1fr 1fr;
-  }
-
-  .arch-sidebar {
-    border-right: 1px solid var(--border);
-    padding: 48px 32px;
-  }
-
-  .arch-sidebar h2 {
-    font-family: var(--serif);
-    font-size: 28px;
-    font-weight: 400;
-    color: var(--off-white);
-    line-height: 1.2;
-    margin-bottom: 16px;
-  }
-
-  .arch-sidebar p {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    line-height: 1.7;
-  }
-
-  .arch-flow {
-    padding: 48px;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-  }
-
-  .flow-step {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 14px 0;
-    width: 100%;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    cursor: default;
-    transition: all 0.2s;
-  }
-
-  .flow-step:last-child { border-bottom: none; }
-
-  .flow-step:hover .flow-name { color: var(--off-white); }
-  .flow-step:hover .flow-index { color: var(--light-muted); }
-
-  .flow-index {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-    width: 28px;
-    flex-shrink: 0;
-    transition: color 0.2s;
-  }
-
-  .flow-name {
-    font-family: var(--sans);
-    font-size: 14px;
-    font-weight: 400;
-    color: var(--subtle);
-    transition: color 0.2s;
-    flex: 1;
-  }
-
-  .flow-desc {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.04em;
-    text-align: right;
-  }
-
-  .arch-annotations {
-    padding: 48px;
-  }
-
-  .annotation {
-    margin-bottom: 32px;
-    padding-bottom: 32px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-  }
-
-  .annotation:last-child { border-bottom: none; }
-
-  .annotation-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  .annotation-content {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    line-height: 1.75;
-  }
-
-  .annotation-content code {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--light-muted);
-    background: rgba(255,255,255,0.05);
-    padding: 2px 6px;
-  }
-
-  /* ---- R1GPT SHOWCASE ---- */
-  #r1gpt .r1-content {
-    display: grid;
-    grid-template-columns: 200px 1fr 360px;
-  }
-
-  .r1-sidebar {
-    border-right: 1px solid var(--border);
-    padding: 48px 32px;
-  }
-
-  .r1-sidebar h2 {
-    font-family: var(--serif);
-    font-size: 48px;
-    font-weight: 400;
-    font-style: italic;
-    color: var(--off-white);
-    line-height: 1;
-    margin-bottom: 16px;
-    letter-spacing: -0.02em;
-  }
-
-  .r1-sidebar .tagline {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    line-height: 1.6;
-  }
-
-  .r1-main {
-    padding: 48px;
-    border-right: 1px solid var(--border);
-  }
-
-  .component-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin-bottom: 48px;
-  }
-
-  .component-item {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 18px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    transition: all 0.2s;
-  }
-
-  .component-item:hover .comp-name { color: var(--off-white); }
-
-  .comp-idx {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--border);
-    width: 20px;
-    flex-shrink: 0;
-    letter-spacing: 0.06em;
-  }
-
-  .comp-name {
-    font-family: var(--sans);
-    font-size: 15px;
-    font-weight: 400;
-    color: var(--light-muted);
-    flex: 1;
-    transition: color 0.2s;
-  }
-
-  .comp-note {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    text-align: right;
-    letter-spacing: 0.04em;
-  }
-
-  .r1-stats {
-    padding: 48px 32px;
-  }
-
-  .stat-block {
-    padding: 24px 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .stat-block:last-child { border-bottom: none; }
-
-  .stat-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  .stat-value {
-    font-family: var(--mono);
-    font-size: 28px;
-    font-weight: 300;
-    color: var(--off-white);
-    letter-spacing: -0.02em;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-
-  .stat-desc {
-    font-family: var(--sans);
-    font-size: 12px;
-    color: var(--muted);
-  }
-
-  /* ---- DEMO SECTION ---- */
-  #demo .demo-content {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-  }
-
-  .demo-sidebar {
-    border-right: 1px solid var(--border);
-    padding: 48px 32px;
-  }
-
-  .demo-sidebar h2 {
-    font-family: var(--serif);
-    font-size: 28px;
-    font-weight: 400;
-    color: var(--off-white);
-    line-height: 1.2;
-    margin-bottom: 12px;
-  }
-
-  .demo-sidebar p {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    line-height: 1.7;
-  }
-
-  .demo-notice {
-    margin-top: 24px;
-    padding: 12px;
-    border: 1px solid var(--border);
-    background: rgba(255,255,255,0.02);
-  }
-
-  .demo-notice p {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-    line-height: 1.7;
-  }
-
-  .demo-interface {
-    padding: 48px;
-  }
-
-  .demo-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  .demo-input-row {
-    display: flex;
-    gap: 0;
-    margin-bottom: 32px;
-    border: 1px solid var(--border);
-  }
-
-  .demo-input {
-    flex: 1;
-    background: rgba(255,255,255,0.02);
-    border: none;
-    outline: none;
-    padding: 16px 20px;
-    font-family: var(--mono);
-    font-size: 14px;
-    color: var(--off-white);
-    letter-spacing: 0.02em;
-  }
-
-  .demo-input::placeholder { color: var(--muted); }
-
-  .demo-run {
-    background: var(--off-white);
-    border: none;
-    outline: none;
-    padding: 16px 28px;
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--black);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-  }
-
-  .demo-run:hover { background: var(--accent); }
-
-  .demo-controls {
-    display: flex;
-    gap: 32px;
-    margin-bottom: 32px;
-  }
-
-  .demo-control {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .control-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .control-input {
-    background: transparent;
-    border: 1px solid var(--border);
-    outline: none;
-    padding: 8px 12px;
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--off-white);
-    width: 80px;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-
-  .demo-output-container {
-    border: 1px solid var(--border);
-    background: rgba(255,255,255,0.01);
-  }
-
-  .output-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .output-title {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .output-status {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-  }
-
-  .output-body {
-    padding: 24px;
-    min-height: 160px;
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--light-muted);
-    line-height: 1.8;
-    letter-spacing: 0.02em;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  .output-placeholder {
-    color: var(--muted);
-    font-style: italic;
-  }
-
-  .cursor { 
-    display: inline-block;
-    width: 8px;
-    height: 14px;
-    background: var(--off-white);
-    animation: blink 1s step-end infinite;
-    vertical-align: middle;
-    margin-left: 2px;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-
-  /* ---- RESEARCH NOTES ---- */
-  #research .research-content {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-  }
-
-  .research-sidebar {
-    border-right: 1px solid var(--border);
-    padding: 48px 32px;
-  }
-
-  .research-sidebar h2 {
-    font-family: var(--serif);
-    font-size: 28px;
-    font-weight: 400;
-    color: var(--off-white);
-    line-height: 1.2;
-    margin-bottom: 12px;
-  }
-
-  .research-sidebar p {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    line-height: 1.7;
-  }
-
-  .notes-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-left: none;
-  }
-
-  .note-item {
-    padding: 36px 48px;
-    border-bottom: 1px solid var(--border);
-    border-right: 1px solid var(--border);
-    cursor: pointer;
-    transition: background 0.2s;
-    text-decoration: none;
-    display: block;
-  }
-
-  .note-item:nth-child(even) { border-right: none; }
-  .note-item:hover { background: rgba(255,255,255,0.02); }
-
-  .note-idx {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    margin-bottom: 12px;
-  }
-
-  .note-title {
-    font-family: var(--sans);
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--off-white);
-    margin-bottom: 8px;
-    line-height: 1.3;
-  }
-
-  .note-desc {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    line-height: 1.65;
-    margin-bottom: 20px;
-  }
-
-  .note-tag {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    padding: 3px 8px;
-    display: inline-block;
-  }
-
-  /* ---- TIMELINE ---- */
-  #timeline .timeline-content {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-  }
-
-  .timeline-sidebar {
-    border-right: 1px solid var(--border);
-    padding: 48px 32px;
-  }
-
-  .timeline-sidebar h2 {
-    font-family: var(--serif);
-    font-size: 28px;
-    font-weight: 400;
-    color: var(--off-white);
-    line-height: 1.2;
-    margin-bottom: 12px;
-  }
-
-  .timeline-sidebar p {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    line-height: 1.7;
-  }
-
-  .timeline-main {
-    padding: 48px;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .tl-item {
-    display: grid;
-    grid-template-columns: 48px 1fr 200px;
-    align-items: center;
-    padding: 20px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    transition: all 0.2s;
-  }
-
-  .tl-item:last-child { border-bottom: none; }
-  .tl-item:hover .tl-name { color: var(--off-white); }
-  .tl-item.completed .tl-dot { background: var(--off-white); }
-  .tl-item.active .tl-dot { background: var(--off-white); box-shadow: 0 0 0 3px rgba(255,255,255,0.1); }
-  .tl-item.future .tl-dot { background: transparent; border: 1px solid var(--border); }
-
-  .tl-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-    flex-shrink: 0;
-  }
-
-  .tl-name {
-    font-family: var(--sans);
-    font-size: 15px;
-    font-weight: 400;
-    color: var(--subtle);
-    transition: color 0.2s;
-  }
-
-  .tl-item.completed .tl-name { color: var(--light-muted); }
-
-  .tl-note {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    text-align: right;
-    letter-spacing: 0.04em;
-  }
-
-  /* ---- OPEN SOURCE ---- */
-  #opensource .os-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .os-block {
-    padding: 64px 48px;
-    border-right: 1px solid var(--border);
-  }
-
-  .os-block:last-child { border-right: none; }
-
-  .os-eyebrow {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 20px;
-  }
-
-  .os-block h2 {
-    font-family: var(--serif);
-    font-size: 36px;
-    font-weight: 400;
-    color: var(--off-white);
-    line-height: 1.15;
-    margin-bottom: 20px;
-    letter-spacing: -0.01em;
-  }
-
-  .os-block p {
-    font-family: var(--sans);
-    font-size: 14px;
-    color: var(--subtle);
-    line-height: 1.75;
-    margin-bottom: 36px;
-    max-width: 400px;
-  }
-
-  .os-links {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .os-link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    text-decoration: none;
-    transition: all 0.2s;
-  }
-
-  .os-link:hover .os-link-name { color: var(--off-white); }
-  .os-link:hover .os-link-arrow { color: var(--light-muted); transform: translate(4px, -4px); }
-
-  .os-link-name {
-    font-family: var(--sans);
-    font-size: 14px;
-    color: var(--subtle);
-    transition: color 0.2s;
-  }
-
-  .os-link-arrow {
-    font-family: var(--mono);
-    font-size: 14px;
-    color: var(--border);
-    transition: all 0.2s;
-  }
-
-  /* ---- FOOTER ---- */
-  footer {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    padding: 48px;
-    gap: 32px;
-    border-top: none;
-  }
-
-  .footer-brand {}
-
-  .footer-logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--off-white);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-
-  .footer-tagline {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.65;
-    max-width: 220px;
-  }
-
-  .footer-col h4 {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-  }
-
-  .footer-col ul {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .footer-col a {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--subtle);
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-
-  .footer-col a:hover { color: var(--off-white); }
-
-  .footer-bottom {
-    padding: 24px 48px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .footer-copy {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-  }
-
-  .footer-version {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-  }
-
-  /* ---- ANIMATIONS ---- */
-  .fade-in {
-    opacity: 0;
-    transform: translateY(16px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-  }
-
-  .fade-in.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* ---- DOCUMENTATION MODAL ---- */
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(10, 10, 10, 0.85);
-    backdrop-filter: blur(12px);
-    z-index: 2000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-  
-  .modal-overlay.active {
-    opacity: 1;
-    pointer-events: all;
-  }
-  
-  .modal-window {
-    background: var(--off-black);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 800px;
-    max-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
-    transform: translateY(20px);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  
-  .modal-overlay.active .modal-window {
-    transform: translateY(0);
-  }
-  
-  .modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  
-  .modal-title {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--subtle);
-  }
-  
-  .modal-close {
-    background: none;
-    border: none;
-    color: var(--subtle);
-    font-size: 24px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 4px;
-    transition: color 0.2s;
-  }
-  
-  .modal-close:hover {
-    color: var(--off-white);
-  }
-  
-  .modal-body {
-    padding: 32px 40px;
-    overflow-y: auto;
-    font-family: var(--sans);
-    color: var(--light-muted);
-    font-size: 15px;
-    line-height: 1.8;
-  }
-  
-  /* Markdown styling inside modal */
-  .modal-body h1 {
-    font-family: var(--serif);
-    font-size: 32px;
-    font-weight: 400;
-    color: var(--off-white);
-    margin-bottom: 24px;
-    line-height: 1.25;
-  }
-  
-  .modal-body h2 {
-    font-family: var(--sans);
-    font-weight: 500;
-    font-size: 20px;
-    color: var(--off-white);
-    margin-top: 36px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 8px;
-  }
-  
-  .modal-body h3 {
-    font-family: var(--sans);
-    font-weight: 500;
-    font-size: 16px;
-    color: var(--off-white);
-    margin-top: 24px;
-    margin-bottom: 12px;
-  }
-  
-  .modal-body p {
-    margin-bottom: 20px;
-  }
-  
-  .modal-body blockquote {
-    border-left: 2px solid var(--subtle);
-    padding-left: 20px;
-    margin: 24px 0;
-    font-style: italic;
-    color: var(--light);
-  }
-  
-  .modal-body code {
-    font-family: var(--mono);
-    font-size: 13px;
-    background: var(--dark);
-    padding: 2px 6px;
-    border-radius: 4px;
-    color: var(--off-white);
-  }
-  
-  .modal-body pre {
-    background: var(--dark);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-    overflow-x: auto;
-    margin: 24px 0;
-  }
-  
-  .modal-body pre code {
-    padding: 0;
-    background: none;
-    border-radius: 0;
-  }
-  
-  .modal-body table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 24px 0;
-  }
-  
-  .modal-body th, .modal-body td {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    text-align: left;
-    font-size: 14px;
-  }
-  
-  .modal-body th {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--subtle);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  
-  .modal-body ul, .modal-body ol {
-    margin-bottom: 24px;
-    padding-left: 20px;
-  }
-  
-  .modal-body li {
-    margin-bottom: 8px;
-  }
-
-  .modal-body .math-block {
-    background: var(--dark);
-    border-left: 2px solid var(--subtle);
-    padding: 16px;
-    font-family: var(--mono);
-    font-size: 13px;
-    margin: 24px 0;
-    color: var(--off-white);
-    text-align: center;
-    overflow-x: auto;
-  }
-  
-  .modal-body .math-inline {
-    font-family: var(--mono);
-    font-style: italic;
-    color: var(--off-white);
-  }
-
-  .footer-dev-link {
-    color: var(--subtle);
-    text-decoration: none;
-    border-bottom: 1px dotted var(--muted);
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .footer-dev-link:hover {
-    color: var(--off-white);
-    border-bottom-color: var(--off-white);
-  }
-  
-  @media (max-width: 600px) {
-    .modal-body {
-      padding: 24px;
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f4f3">
+  <meta name="description" content="RGPT is building accessible large language models and affordable API tools for students and builders. Hosted API access is in development; explore the open-source research today.">
+  <title>RGPT — Accessible LLM APIs for builders</title>
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="RGPT — Accessible LLM APIs for builders">
+  <meta property="og:description" content="Accessible large language models and affordable API tools for students and builders. Hosted API access is in development.">
+  <link rel="icon" href="resources/img/rgptlogo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #111315;
+      --body-ink: #414448;
+      --muted-ink: #85898e;
+      --quiet-ink: #686c71;
+      --edge: rgba(47, 50, 54, 0.17);
+      --frost: rgba(255, 255, 255, 0.58);
+      --font: "Geist", "Helvetica Neue", Arial, sans-serif;
     }
-  }
 
-  /* ---- RESPONSIVE ---- */
-  @media (max-width: 900px) {
-    nav { padding: 0 24px; }
-    .nav-links { gap: 20px; }
-    
-    #hero { grid-template-columns: 1fr; min-height: auto; }
-    .hero-left { padding: 60px 24px 48px; border-right: none; border-bottom: 1px solid var(--border); }
-    .hero-right { padding: 48px 24px; min-height: 300px; }
-    .hero-meta { display: none; }
+    *,
+    *::before,
+    *::after { box-sizing: border-box; }
 
-    .section-header { grid-template-columns: 80px 1fr; }
-    .section-number { padding: 20px 16px; }
-    .section-title-block { padding: 20px 24px; }
+    html {
+      min-width: 320px;
+      scroll-behavior: smooth;
+      scroll-padding-top: 108px;
+    }
 
-    #models .model-grid { grid-template-columns: 1fr; }
-    .model-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
-    .model-row { grid-template-columns: 100px 1fr; gap: 16px; padding: 24px; }
-    .model-tech, .model-badge { display: none; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background: #efefee;
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
 
-    #architecture .arch-content { grid-template-columns: 1fr; }
-    .arch-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
-    .arch-flow { padding: 32px 24px; border-right: none; border-bottom: 1px solid var(--border); }
-    .arch-annotations { padding: 32px 24px; }
+    button,
+    textarea { font: inherit; }
 
-    #r1gpt .r1-content { grid-template-columns: 1fr; }
-    .r1-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
-    .r1-main { border-right: none; padding: 32px 24px; }
-    .r1-stats { padding: 32px 24px; }
+    button,
+    a { -webkit-tap-highlight-color: transparent; }
 
-    #demo .demo-content { grid-template-columns: 1fr; }
-    .demo-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
-    .demo-interface { padding: 32px 24px; }
+    button { color: inherit; }
 
-    #research .research-content { grid-template-columns: 1fr; }
-    .research-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
-    .notes-grid { grid-template-columns: 1fr; }
-    .note-item { border-right: none !important; padding: 28px 24px; }
+    a { color: inherit; }
 
-    #timeline .timeline-content { grid-template-columns: 1fr; }
-    .timeline-sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 32px 24px; }
-    .timeline-main { padding: 32px 24px; }
-    .tl-item { grid-template-columns: 32px 1fr; }
-    .tl-note { display: none; }
+    section[id] { scroll-margin-top: 108px; }
 
-    #opensource .os-content { grid-template-columns: 1fr; }
-    .os-block { border-right: none; padding: 48px 24px; }
-    .os-block + .os-block { border-top: 1px solid var(--border); }
+    .skip-link {
+      position: fixed;
+      z-index: 20;
+      top: 12px;
+      left: 12px;
+      padding: 12px 16px;
+      transform: translateY(-160%);
+      border-radius: 999px;
+      background: var(--ink);
+      color: #fff;
+      text-decoration: none;
+    }
 
-    footer { grid-template-columns: 1fr 1fr; padding: 32px 24px; }
-    .footer-bottom { padding: 20px 24px; flex-direction: column; gap: 8px; text-align: center; }
-  }
-</style>
+    .skip-link:focus { transform: translateY(0); }
+
+    .landing {
+      position: relative;
+      isolation: isolate;
+      min-height: 100vh;
+      min-height: 100svh;
+      overflow: hidden;
+      background: #ededec;
+    }
+
+    .backdrop {
+      position: absolute;
+      z-index: 0;
+      inset: 0;
+      overflow: hidden;
+      background: #ededec;
+      pointer-events: none;
+    }
+
+    .backdrop-poster,
+    .hero-video {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+    }
+
+    .backdrop-poster {
+      z-index: 0;
+      object-position: center center;
+    }
+
+    .hero-video {
+      z-index: 1;
+      opacity: 1;
+      transition: none;
+    }
+
+    .landing[data-video="fallback"] .hero-video { display: none; }
+
+    .backdrop::after {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.11) 34%, rgba(255, 255, 255, 0) 72%);
+      content: "";
+    }
+
+    .landing[data-motion="reduced"] .hero-video { display: none; }
+
+    .site-header {
+      position: fixed;
+      z-index: 10;
+      top: 0;
+      right: 0;
+      left: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      min-height: 96px;
+      padding: 12px 4.5vw 12px 5.85vw;
+      transition: background-color 180ms ease, border-color 180ms ease, backdrop-filter 180ms ease;
+    }
+
+    .site-header.is-scrolled {
+      border-bottom: 1px solid rgba(47, 50, 54, 0.11);
+      background: rgba(239, 239, 238, 0.88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: inline-flex;
+      width: fit-content;
+      min-height: 48px;
+      align-items: center;
+      gap: 16px;
+      margin-left: -4px;
+      text-decoration: none;
+    }
+
+    .brand img {
+      display: block;
+      width: 58px;
+      height: 58px;
+      flex: 0 0 auto;
+      object-fit: contain;
+      transform-origin: center;
+      animation: rgpt-logo-spin 20s linear infinite;
+    }
+
+    @keyframes rgpt-logo-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .brand-name {
+      font-size: 29px;
+      font-weight: 500;
+      letter-spacing: -0.055em;
+      line-height: 1;
+    }
+
+    .primary-nav {
+      justify-self: center;
+      transform: translateX(-54px);
+    }
+
+    .nav-list {
+      display: flex;
+      align-items: center;
+      gap: clamp(20px, 2.55vw, 38px);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .mobile-github { display: none; }
+
+    .nav-link {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #181a1c;
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.2;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: color 160ms ease;
+    }
+
+    .nav-link:hover { color: var(--quiet-ink); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      justify-self: end;
+      gap: 13px;
+    }
+
+    .pill-button {
+      display: inline-flex;
+      min-height: 52px;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 0 20px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1;
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .pill-button:active,
+    .send-button:active,
+    .action-chip:active { transform: scale(0.98); }
+
+    .login-button {
+      min-width: 122px;
+      border-color: rgba(30, 32, 35, 0.25);
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .login-button:hover { background: rgba(255, 255, 255, 0.62); }
+
+    .start-button {
+      min-width: 150px;
+      border-color: var(--ink);
+      background: #111315;
+      color: #fff;
+    }
+
+    .start-button:hover {
+      border-color: #35383b;
+      background: #35383b;
+    }
+
+    .start-button svg { width: 19px; height: 19px; }
+
+    .menu-toggle {
+      display: none;
+      width: 46px;
+      height: 46px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--edge);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.48);
+      cursor: pointer;
+    }
+
+    .menu-toggle svg { width: 21px; height: 21px; }
+
+    main { position: relative; z-index: 1; }
+
+    .hero {
+      min-height: 100vh;
+      min-height: 100svh;
+    }
+
+    .hero-stage {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      min-height: 100vh;
+      min-height: 100svh;
+      align-items: center;
+      padding: 44px clamp(24px, 6.85vw, 104px) 78px;
+    }
+
+    .hero-content {
+      width: min(640px, 54vw);
+      padding: 0;
+      transform: translateY(24px);
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--quiet-ink);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.235em;
+      line-height: 1.3;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: #090a0b;
+      font-size: clamp(56px, 5.8vw, 90px);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 0.96;
+    }
+
+    h1 span { display: block; }
+
+    h1 .headline-muted {
+      color: var(--muted-ink);
+      font-weight: 400;
+    }
+
+    .hero-copy {
+      max-width: 560px;
+      margin: 22px 0 0;
+      color: #414448;
+      font-size: 19px;
+      font-weight: 300;
+      letter-spacing: -0.025em;
+      line-height: 1.43;
+    }
+
+    .prompt-area {
+      width: min(640px, calc(100% + 8px));
+      margin-top: 27px;
+      margin-left: -8px;
+    }
+
+    .prompt-box {
+      display: flex;
+      min-height: 76px;
+      align-items: center;
+      gap: 13px;
+      padding: 8px 10px 8px 15px;
+      border: 1px solid rgba(255, 255, 255, 0.89);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.68);
+      box-shadow: 0 10px 28px rgba(29, 31, 34, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .attach-button {
+      display: inline-flex;
+      width: 46px;
+      height: 46px;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(226, 227, 229, 0.83);
+      color: #111315;
+      cursor: pointer;
+      transition: background-color 160ms ease, transform 160ms ease;
+    }
+
+    .attach-button:hover { background: #d6d8da; }
+    .attach-button svg { width: 24px; height: 24px; }
+
+    .prompt-input {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      max-height: 132px;
+      min-height: 36px;
+      padding: 5px 0;
+      resize: none;
+      overflow-y: auto;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #17191b;
+      font-size: 17px;
+      font-weight: 300;
+      letter-spacing: -0.035em;
+      line-height: 1.35;
+    }
+
+    .prompt-input::placeholder { color: var(--quiet-ink); opacity: 1; }
+
+    .prompt-status {
+      margin: 9px 10px 0;
+      color: var(--quiet-ink);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .send-button {
+      display: inline-flex;
+      width: 52px;
+      height: 52px;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 50%;
+      background: #111315;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 160ms ease, transform 160ms ease;
+    }
+
+    .send-button:hover { background: #3d4043; }
+    .send-button svg { width: 24px; height: 24px; }
+
+    .attachment-note {
+      margin: 9px 0 0 22px;
+      color: #414448;
+      font-size: 12px;
+    }
+
+    .attachment-note[hidden] { display: none; }
+
+    .action-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 13px;
+      margin-top: 17px;
+      margin-left: 8px;
+    }
+
+    .action-chip {
+      display: inline-flex;
+      min-width: 100px;
+      min-height: 46px;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 14px;
+      border: 1px solid rgba(78, 82, 86, 0.2);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.23);
+      color: #1c1e20;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .action-chip:hover,
+    .action-chip[aria-pressed="true"] {
+      border-color: rgba(45, 48, 51, 0.36);
+      background: rgba(255, 255, 255, 0.68);
+    }
+
+    .action-chip svg { width: 19px; height: 19px; flex: 0 0 auto; }
+
+    .action-chip[data-mode="write"] { min-width: 100px; }
+    .action-chip[data-mode="analyze"] { min-width: 116px; }
+    .action-chip[data-mode="create"] { min-width: 110px; }
+    .action-chip[data-mode="research"] { min-width: 128px; }
+
+    .hero-footer {
+      position: absolute;
+      z-index: 4;
+      right: 4.5vw;
+      bottom: 42px;
+      left: 6.9vw;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      color: var(--quiet-ink);
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      line-height: 1.3;
+      pointer-events: none;
+      text-transform: uppercase;
+    }
+
+    .footer-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 30px;
+    }
+
+    .footer-mark::before {
+      display: block;
+      width: 1px;
+      height: 34px;
+      background: rgba(39, 42, 45, 0.45);
+      content: "";
+    }
+
+    .footer-next {
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
+      white-space: nowrap;
+    }
+
+    .footer-next::after {
+      display: block;
+      width: 52px;
+      height: 1px;
+      background: rgba(39, 42, 45, 0.38);
+      content: "";
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 10;
+      right: 18px;
+      bottom: 20px;
+      left: 18px;
+      width: fit-content;
+      max-width: min(520px, calc(100vw - 36px));
+      margin-inline: auto;
+      padding: 13px 18px;
+      transform: translateY(10px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      background: #151719;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      color: #fff;
+      font-size: 14px;
+      line-height: 1.4;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast[hidden] { display: none; }
+    .toast.is-visible { transform: translateY(0); opacity: 1; }
+
+    :focus-visible {
+      outline: 3px solid #303337;
+      outline-offset: 4px;
+    }
+
+    .send-button:focus-visible,
+    .start-button:focus-visible { outline-color: #fff; }
+
+    .page-section {
+      position: relative;
+      padding: clamp(64px, 7.5vw, 108px) 0;
+      border-top: 1px solid rgba(47, 50, 54, 0.12);
+      background: #efefee;
+    }
+
+    .section-shell {
+      width: min(1120px, calc(100% - clamp(44px, 12vw, 176px)));
+      margin-inline: auto;
+    }
+
+    .section-kicker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 18px;
+      color: var(--quiet-ink);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.19em;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    .section-kicker::before {
+      width: 26px;
+      height: 1px;
+      background: #777b80;
+      content: "";
+    }
+
+    .section-title {
+      max-width: 800px;
+      margin: 0;
+      font-size: clamp(38px, 5.1vw, 62px);
+      font-weight: 400;
+      letter-spacing: -0.065em;
+      line-height: 0.99;
+    }
+
+    .section-title em {
+      color: #85898e;
+      font-style: normal;
+    }
+
+    .section-lede {
+      max-width: 620px;
+      margin: 18px 0 0;
+      color: var(--body-ink);
+      font-size: clamp(16px, 1.35vw, 18px);
+      font-weight: 300;
+      letter-spacing: -0.018em;
+      line-height: 1.6;
+    }
+
+    .intro-section { padding-top: clamp(60px, 7vw, 92px); }
+
+    .intro-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      align-items: end;
+      gap: clamp(36px, 6.5vw, 88px);
+    }
+
+    .status-card {
+      padding: 22px 24px 24px;
+      border: 1px solid rgba(47, 50, 54, 0.14);
+      border-radius: 17px;
+      background: rgba(255, 255, 255, 0.48);
+      box-shadow: 0 16px 40px rgba(31, 34, 37, 0.035);
+    }
+
+    .status-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--quiet-ink);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #777b80;
+      box-shadow: 0 0 0 4px rgba(104, 108, 113, 0.1);
+    }
+
+    .status-card h3 {
+      margin: 18px 0 7px;
+      font-size: 21px;
+      font-weight: 400;
+      letter-spacing: -0.04em;
+    }
+
+    .status-card p {
+      margin: 0;
+      color: var(--body-ink);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .status-card a,
+    .inline-link {
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
+    }
+
+    .capabilities-section { background: #e9e9e8; }
+
+    .section-heading-row {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 36px;
+      margin-bottom: 34px;
+    }
+
+    .section-heading-row .section-lede {
+      max-width: 390px;
+      margin: 0 0 5px;
+      font-size: 16px;
+    }
+
+    .capability-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 13px;
+    }
+
+    .capability-card {
+      display: flex;
+      min-height: 224px;
+      flex-direction: column;
+      padding: 19px 18px 18px;
+      border: 1px solid rgba(47, 50, 54, 0.13);
+      border-radius: 17px;
+      background: rgba(255, 255, 255, 0.48);
+      transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .capability-card:hover {
+      transform: translateY(-4px);
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 18px 38px rgba(30, 32, 35, 0.07);
+    }
+
+    .capability-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .capability-index {
+      color: #777b80;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      min-height: 27px;
+      align-items: center;
+      padding: 0 10px;
+      border: 1px solid rgba(47, 50, 54, 0.16);
+      border-radius: 999px;
+      color: #55595e;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .capability-icon {
+      width: 30px;
+      height: 30px;
+      margin-top: 19px;
+      color: #373a3d;
+    }
+
+    .capability-card h3 {
+      margin: 13px 0 7px;
+      font-size: 18px;
+      font-weight: 400;
+      letter-spacing: -0.045em;
+    }
+
+    .capability-card p {
+      margin: 0;
+      color: var(--body-ink);
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    .capabilities-footnote {
+      margin: 18px 0 0;
+      color: var(--quiet-ink);
+      font-size: 13px;
+    }
+
+    .process-section { overflow: hidden; }
+
+    .process-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+      gap: clamp(38px, 7vw, 96px);
+      align-items: start;
+    }
+
+    .process-aside { position: sticky; top: 132px; }
+
+    .process-aside .section-title { font-size: clamp(40px, 4.8vw, 58px); }
+
+    .process-list {
+      margin: 0;
+      padding: 0;
+      border-top: 1px solid rgba(47, 50, 54, 0.18);
+      list-style: none;
+    }
+
+    .process-step {
+      display: grid;
+      grid-template-columns: 46px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      min-height: 78px;
+      border-bottom: 1px solid rgba(47, 50, 54, 0.18);
+    }
+
+    .process-number {
+      color: #777b80;
+      font-size: 12px;
+      letter-spacing: 0.11em;
+    }
+
+    .process-step strong {
+      display: block;
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: -0.035em;
+    }
+
+    .process-step span:last-child {
+      color: var(--quiet-ink);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .model-section {
+      overflow: hidden;
+      border-top-color: #25282b;
+      background: #17191b;
+      color: #f2f2f1;
+    }
+
+    .model-section .section-shell { position: relative; z-index: 1; }
+
+    .model-section::after {
+      position: absolute;
+      top: -200px;
+      right: -120px;
+      width: min(56vw, 660px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+      box-shadow: 0 0 0 56px rgba(255, 255, 255, 0.018), 0 0 0 112px rgba(255, 255, 255, 0.014), 0 0 0 168px rgba(255, 255, 255, 0.01);
+      content: "";
+      pointer-events: none;
+    }
+
+    .model-section .section-kicker,
+    .model-section .section-lede { color: #b3b5b7; }
+
+    .model-section .section-kicker::before { background: #b3b5b7; }
+
+    .model-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      align-items: end;
+      gap: clamp(40px, 7vw, 96px);
+    }
+
+    .model-layout .section-title em { color: #92969a; }
+
+    .model-caveat {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      max-width: 560px;
+      margin-top: 22px;
+      padding: 13px 15px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.055);
+      color: #c2c4c6;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .model-caveat svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 2px; }
+
+    .model-specs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid rgba(255, 255, 255, 0.22);
+      border-left: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .model-spec {
+      min-height: 104px;
+      padding: 17px 18px;
+      border-right: 1px solid rgba(255, 255, 255, 0.22);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .model-spec strong {
+      display: block;
+      font-size: clamp(30px, 3.5vw, 44px);
+      font-weight: 300;
+      letter-spacing: -0.07em;
+      line-height: 1;
+    }
+
+    .model-spec span {
+      display: block;
+      margin-top: 9px;
+      color: #b3b5b7;
+      font-size: 11px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .model-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 22px;
+      margin-top: 20px;
+    }
+
+    .model-links a {
+      color: #f2f2f1;
+      font-size: 14px;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 5px;
+    }
+
+    .roadmap-section { background: #e9e9e8; }
+
+    .roadmap-list {
+      margin: 35px 0 0;
+      padding: 0;
+      border-top: 1px solid rgba(47, 50, 54, 0.18);
+      list-style: none;
+    }
+
+    .roadmap-row {
+      display: grid;
+      grid-template-columns: 56px minmax(170px, 0.75fr) minmax(0, 1fr) 108px;
+      align-items: center;
+      gap: 17px;
+      min-height: 76px;
+      border-bottom: 1px solid rgba(47, 50, 54, 0.18);
+    }
+
+    .roadmap-row > span:first-child {
+      color: #777b80;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+    }
+
+    .roadmap-row h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: -0.035em;
+    }
+
+    .roadmap-row p {
+      margin: 0;
+      color: var(--body-ink);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .roadmap-status {
+      justify-self: end;
+      padding: 7px 10px;
+      border: 1px solid rgba(47, 50, 54, 0.2);
+      border-radius: 999px;
+      color: #55595e;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .access-section { padding-block: clamp(52px, 6vw, 84px); }
+
+    .access-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 34px;
+      padding: clamp(24px, 4.2vw, 50px);
+      border: 1px solid rgba(47, 50, 54, 0.13);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.56);
+      box-shadow: 0 22px 60px rgba(31, 34, 37, 0.045);
+    }
+
+    .access-panel .section-title { max-width: 720px; font-size: clamp(36px, 4.5vw, 54px); }
+    .access-panel .section-lede { max-width: 690px; margin-top: 14px; font-size: 15px; }
+
+    .access-actions {
+      display: flex;
+      min-width: 190px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 9px;
+    }
+
+    .access-actions .pill-button { min-height: 48px; }
+
+    .faq-section { background: #e9e9e8; }
+
+    .faq-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+      gap: clamp(36px, 7vw, 96px);
+    }
+
+    .faq-list { border-top: 1px solid rgba(47, 50, 54, 0.18); }
+
+    .faq-list details { border-bottom: 1px solid rgba(47, 50, 54, 0.18); }
+
+    .faq-list summary {
+      position: relative;
+      display: flex;
+      min-height: 64px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 32px 14px 0;
+      font-size: 16px;
+      font-weight: 400;
+      letter-spacing: -0.025em;
+      list-style: none;
+      cursor: pointer;
+    }
+
+    .faq-list summary::-webkit-details-marker { display: none; }
+
+    .faq-list summary::after {
+      position: absolute;
+      right: 4px;
+      color: #686c71;
+      font-size: 23px;
+      font-weight: 300;
+      content: "+";
+    }
+
+    .faq-list details[open] summary::after { content: "−"; }
+
+    .faq-list details p {
+      max-width: 680px;
+      margin: -2px 36px 22px 0;
+      color: var(--body-ink);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .about-section { padding-bottom: clamp(72px, 8vw, 108px); }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(270px, 0.75fr);
+      align-items: end;
+      gap: clamp(36px, 7vw, 96px);
+    }
+
+    .about-note {
+      padding: 22px 0 0 20px;
+      border-left: 1px solid rgba(47, 50, 54, 0.24);
+      color: var(--body-ink);
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    .about-note strong { color: var(--ink); font-weight: 500; }
+
+    .site-footer {
+      padding: 46px 0 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      background: #17191b;
+      color: #f2f2f1;
+    }
+
+    .footer-main {
+      display: grid;
+      grid-template-columns: minmax(230px, 1.4fr) repeat(3, minmax(130px, 0.7fr));
+      gap: clamp(26px, 5vw, 64px);
+      padding-bottom: 38px;
+    }
+
+    .footer-brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 500;
+      letter-spacing: -0.05em;
+    }
+
+    .footer-brand-lockup img { width: 36px; height: 36px; object-fit: contain; }
+
+    .footer-brand-copy {
+      max-width: 300px;
+      margin: 13px 0 0;
+      color: #b3b5b7;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .footer-col h2 {
+      margin: 4px 0 14px;
+      color: #aaaeb1;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .footer-col ul {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .footer-col a {
+      color: #f2f2f1;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .footer-col a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding-top: 19px;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      color: #b3b5b7;
+      font-size: 12px;
+    }
+
+    .back-to-top { color: #f2f2f1; text-decoration: none; }
+    .back-to-top:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 1100px) and (min-width: 1001px) {
+      .site-header { min-height: 88px; padding-inline: 34px; }
+      .nav-list { gap: 16px; }
+      .brand { gap: 13px; margin-left: 0; }
+      .brand img { width: 50px; height: 50px; }
+      .brand-name { font-size: 27px; }
+      .pill-button { min-height: 48px; padding-inline: 17px; font-size: 14px; }
+      .login-button { min-width: 104px; }
+      .start-button { min-width: 138px; }
+      .hero-content { width: min(620px, 65vw); }
+    }
+
+    @media (max-width: 1000px) {
+      .site-header {
+        display: flex;
+        min-height: 84px;
+        justify-content: space-between;
+        padding-inline: 30px;
+      }
+
+      .primary-nav {
+        position: absolute;
+        top: calc(100% - 2px);
+        right: 30px;
+        left: 30px;
+        display: none;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.82);
+        border-radius: 18px;
+        background: rgba(249, 249, 248, 0.93);
+        box-shadow: 0 16px 42px rgba(28, 30, 33, 0.12);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      .primary-nav.is-open { display: block; }
+      .primary-nav { transform: none; }
+
+      .nav-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+      }
+
+      .nav-list li { min-width: 0; }
+
+      .nav-link {
+        width: 100%;
+        min-height: 46px;
+        justify-content: flex-start;
+        padding: 0 12px;
+        border-radius: 10px;
+        font-size: 15px;
+      }
+
+      .nav-link:hover { background: rgba(36, 39, 42, 0.06); }
+      .mobile-github { display: block; }
+      .header-actions { margin-left: auto; }
+      .login-button { display: none; }
+      .menu-toggle { display: inline-flex; }
+      .hero-stage { padding-inline: 6.3vw; }
+      .hero-content { width: min(620px, 75vw); }
+      h1 { font-size: clamp(54px, 6.8vw, 76px); }
+      .hero-copy { max-width: 500px; font-size: 18px; }
+      .hero-footer { right: 5vw; left: 6.3vw; }
+      .footer-mark { gap: 25px; }
+
+      .intro-grid,
+      .model-layout,
+      .about-grid { grid-template-columns: minmax(0, 1fr); }
+
+      .intro-grid { gap: 32px; }
+      .status-card { max-width: 540px; }
+      .capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .process-layout { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+      .process-aside { position: static; }
+      .model-layout { gap: 38px; }
+      .model-section::after { top: -110px; right: -230px; width: 700px; }
+      .access-panel { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+      .access-actions { min-width: 0; flex-direction: row; flex-wrap: wrap; }
+      .faq-layout { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+      .about-grid { gap: 32px; }
+      .footer-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .landing { min-height: 100svh; }
+
+      .backdrop-poster,
+      .hero-video { object-position: 38% center; }
+
+      .backdrop::after {
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.68) 0%, rgba(255, 255, 255, 0.47) 66%, rgba(255, 255, 255, 0.16) 100%);
+      }
+
+      .site-header {
+        min-height: 72px;
+        padding: 9px 18px;
+      }
+
+      .brand { gap: 10px; margin-left: 0; }
+      .brand img { width: 40px; height: 40px; }
+      .brand-name { font-size: 24px; }
+      .header-actions { gap: 9px; }
+      .header-actions .start-button { min-width: 116px; min-height: 44px; gap: 7px; padding-inline: 12px; font-size: 13px; }
+      .start-button svg { width: 16px; height: 16px; }
+      .menu-toggle { width: 44px; height: 44px; }
+
+      .primary-nav { right: 20px; left: 20px; }
+
+      .hero-stage {
+        min-height: 100svh;
+        align-items: flex-start;
+        padding: max(156px, 20vh) 22px 128px;
+      }
+
+      .hero-content {
+        width: 100%;
+        max-width: 480px;
+        transform: none;
+      }
+
+      .eyebrow {
+        margin-bottom: 14px;
+        font-size: 9px;
+        letter-spacing: 0.19em;
+      }
+
+      h1 {
+        font-size: clamp(45px, 12.3vw, 62px);
+        letter-spacing: -0.075em;
+        line-height: 0.99;
+      }
+
+      .hero-copy {
+        max-width: min(440px, 75vw);
+        margin-top: 17px;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+        line-height: 1.42;
+      }
+
+      .desktop-break { display: none; }
+
+      .prompt-area {
+        width: 100%;
+        margin-top: 20px;
+        margin-left: 0;
+      }
+
+      .prompt-box {
+        min-height: 66px;
+        gap: 8px;
+        padding: 7px 8px 7px 9px;
+      }
+
+      .attach-button { width: 44px; height: 44px; }
+      .attach-button svg { width: 20px; height: 20px; }
+      .prompt-input { font-size: 15px; }
+      .send-button { width: 48px; height: 48px; }
+      .send-button svg { width: 20px; height: 20px; }
+
+      .action-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+        margin-top: 13px;
+        margin-left: 0;
+      }
+
+      .action-chip {
+        width: 100%;
+        min-height: 45px;
+        gap: 8px;
+        padding-inline: 8px;
+        font-size: 13px;
+      }
+
+      .action-chip[data-mode] { min-width: 0; }
+      .action-chip svg { width: 18px; height: 18px; }
+
+      .hero-footer {
+        right: 22px;
+        bottom: 22px;
+        left: 22px;
+        gap: 10px;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+      }
+
+      .footer-mark { gap: 11px; }
+      .footer-mark::before { height: 30px; }
+      .footer-next { gap: 10px; }
+      .footer-next::after { width: 22px; }
+      .toast { bottom: 14px; font-size: 13px; }
+
+      section[id] { scroll-margin-top: 82px; }
+      .page-section { padding-block: 58px; }
+      .section-shell { width: calc(100% - 40px); }
+      .section-kicker { margin-bottom: 15px; font-size: 9px; }
+      .section-title { font-size: clamp(34px, 9.5vw, 50px); }
+      .section-lede { margin-top: 14px; font-size: 16px; }
+      .section-heading-row { display: block; margin-bottom: 24px; }
+      .section-heading-row .section-lede { margin-top: 13px; }
+      .status-card { padding: 20px 19px 21px; }
+      .capability-grid { gap: 10px; }
+      .capability-card { min-height: 220px; padding: 15px 13px; }
+      .capability-card h3 { font-size: 16px; }
+      .capability-card p { font-size: 13px; }
+      .status-pill { padding-inline: 7px; font-size: 9px; }
+      .process-step { grid-template-columns: 32px minmax(0, 1fr); gap: 9px; min-height: 72px; }
+      .process-step span:last-child { grid-column: 2; margin-top: -17px; text-align: left; }
+      .process-step strong { font-size: 15px; }
+      .model-spec { min-height: 94px; padding: 14px; }
+      .model-spec strong { font-size: 34px; }
+      .model-spec span { font-size: 9px; letter-spacing: 0.1em; }
+      .roadmap-list { margin-top: 24px; }
+      .roadmap-row { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; padding-block: 16px; }
+      .roadmap-row h3 { font-size: 15px; }
+      .roadmap-row p { grid-column: 2 / 4; grid-row: 2; font-size: 13px; }
+      .roadmap-status { grid-column: 3; grid-row: 1; padding: 6px 7px; font-size: 8px; }
+      .access-panel { padding: 21px 18px; border-radius: 16px; }
+      .access-panel .section-title { font-size: clamp(32px, 8.8vw, 44px); }
+      .access-actions { flex-direction: column; }
+      .faq-list summary { min-height: 62px; font-size: 14px; }
+      .about-note { padding-left: 18px; font-size: 14px; }
+      .footer-main { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 20px; padding-bottom: 32px; }
+      .footer-main > :first-child { grid-column: 1 / -1; }
+      .footer-bottom { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (max-width: 360px) {
+      .site-header { padding-inline: 15px; }
+      .brand img { width: 36px; height: 36px; }
+      .brand-name { font-size: 22px; }
+      .header-actions .start-button { min-width: 108px; gap: 5px; padding-inline: 9px; font-size: 12px; }
+      .primary-nav { right: 15px; left: 15px; }
+      .hero-stage { padding-right: 18px; padding-left: 18px; }
+      h1 { font-size: 46px; }
+      .hero-footer { right: 18px; left: 18px; font-size: 8px; }
+      .footer-next::after { width: 14px; }
+    }
+
+    @media (max-height: 740px) and (min-width: 641px) {
+      .hero-stage {
+        align-items: flex-start;
+        padding-top: clamp(104px, 15vh, 114px);
+        padding-bottom: 82px;
+      }
+      .hero-content { transform: none; }
+      .eyebrow { margin-bottom: 13px; }
+      h1 { font-size: clamp(52px, 5.2vw, 78px); }
+      .hero-copy { margin-top: 16px; font-size: 18px; }
+      .prompt-area { margin-top: 19px; }
+      .prompt-box { min-height: 68px; }
+      .action-list { margin-top: 13px; }
+      .hero-footer { bottom: 22px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .brand img { animation: none; }
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
-<!-- NAV -->
-<nav>
-  <a href="https://github.com/RGPT-Model" class="nav-logo" target="_blank">RGPT<span>/</span>Model</a>
-  <ul class="nav-links">
-    <li><a href="#models">Models</a></li>
-    <li><a href="#architecture">Architecture</a></li>
-    <li><a href="#research">Research</a></li>
-    <li><a href="#demo">Demo</a></li>
-    <li><a href="https://github.com/RGPT-Model/R1GPT" class="nav-cta" target="_blank">GitHub ↗</a></li>
-  </ul>
-</nav>
+  <header class="site-header" id="site-header">
+    <a class="brand" href="#top" aria-label="RGPT home">
+      <img src="resources/img/rgptlogo.png" alt="" width="64" height="64" decoding="async">
+      <span class="brand-name">RGPT</span>
+    </a>
 
-<!-- HERO -->
-<section id="hero">
-  <div class="hero-left">
-    <div class="hero-label">Independent AI Research · Est. 2024</div>
-    <h1 class="hero-h1">Building Language Models<br><em>From First Principles.</em></h1>
-    <p class="hero-desc">RGPT Model explores the inner workings of Transformers, Attention, and GPT-style architectures — built from scratch in PyTorch, documented openly, and evolved through experimentation.</p>
-    <div class="hero-actions">
-      <a href="#models" class="btn-primary">View Models</a>
-      <a href="#research" class="btn-secondary">View Research</a>
-    </div>
-  </div>
-  <div class="hero-right">
-    <svg class="arch-diagram" viewBox="0 0 320 480" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Grid lines -->
-      <line x1="0" y1="0" x2="320" y2="0" stroke="#1e1e1e" stroke-width="1"/>
-      <line x1="0" y1="480" x2="320" y2="480" stroke="#1e1e1e" stroke-width="1"/>
-      <line x1="0" y1="0" x2="0" y2="480" stroke="#1e1e1e" stroke-width="1"/>
-      <line x1="320" y1="0" x2="320" y2="480" stroke="#1e1e1e" stroke-width="1"/>
+    <nav class="primary-nav" id="primary-nav" aria-label="Main navigation">
+      <ul class="nav-list">
+        <li><a class="nav-link" href="#workspace">For builders</a></li>
+        <li><a class="nav-link" href="#model">Model</a></li>
+        <li><a class="nav-link" href="#capabilities">Use cases</a></li>
+        <li><a class="nav-link" href="#api-access">API roadmap</a></li>
+        <li><a class="nav-link" href="#about">About</a></li>
+        <li class="mobile-github"><a class="nav-link" href="https://github.com/RGPT-Model/R1GPT" target="_blank" rel="noopener noreferrer">GitHub ↗</a></li>
+      </ul>
+    </nav>
 
-      <!-- Vertical spine -->
-      <line x1="160" y1="24" x2="160" y2="456" stroke="#2a2a2a" stroke-width="1" stroke-dasharray="4,4"/>
-
-      <!-- Main flow boxes -->
-      <rect x="80" y="24" width="160" height="36" fill="none" stroke="#2e2e2e" stroke-width="1"/>
-      <text x="160" y="47" fill="#6a6a6a" font-family="DM Mono, monospace" font-size="11" text-anchor="middle" letter-spacing="1">INPUT TEXT</text>
-
-      <line x1="160" y1="60" x2="160" y2="80" stroke="#2a2a2a" stroke-width="1"/>
-      <polygon points="156,76 160,84 164,76" fill="#2a2a2a"/>
-
-      <rect x="60" y="80" width="200" height="36" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="1"/>
-      <text x="160" y="103" fill="#7a7a7a" font-family="DM Mono, monospace" font-size="11" text-anchor="middle" letter-spacing="1">TOKENIZER</text>
-
-      <line x1="160" y1="116" x2="160" y2="136" stroke="#2a2a2a" stroke-width="1"/>
-      <polygon points="156,132 160,140 164,132" fill="#2a2a2a"/>
-
-      <rect x="60" y="136" width="200" height="36" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="1"/>
-      <text x="160" y="159" fill="#7a7a7a" font-family="DM Mono, monospace" font-size="11" text-anchor="middle" letter-spacing="1">EMBEDDINGS</text>
-
-      <line x1="160" y1="172" x2="160" y2="192" stroke="#2a2a2a" stroke-width="1"/>
-      <polygon points="156,188 160,196 164,188" fill="#2a2a2a"/>
-
-      <!-- Transformer block (larger, highlighted) -->
-      <rect x="32" y="192" width="256" height="120" fill="rgba(255,255,255,0.015)" stroke="#3a3a3a" stroke-width="1"/>
-      <text x="48" y="210" fill="#4a4a4a" font-family="DM Mono, monospace" font-size="9" letter-spacing="2">TRANSFORMER BLOCK × N</text>
-
-      <rect x="48" y="218" width="104" height="32" fill="rgba(255,255,255,0.03)" stroke="#2e2e2e" stroke-width="1"/>
-      <text x="100" y="238" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">MULTI-HEAD</text>
-      <text x="100" y="250" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">ATTENTION</text>
-
-      <rect x="168" y="218" width="104" height="32" fill="rgba(255,255,255,0.03)" stroke="#2e2e2e" stroke-width="1"/>
-      <text x="220" y="238" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">FEED FORWARD</text>
-      <text x="220" y="250" fill="#888" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="0.5">NETWORK</text>
-
-      <!-- Layer norm labels -->
-      <text x="48" y="276" fill="#4a4a4a" font-family="DM Mono, monospace" font-size="9" letter-spacing="1">+ LayerNorm  + Residual</text>
-
-      <rect x="48" y="282" width="224" height="20" fill="rgba(255,255,255,0.02)" stroke="#2a2a2a" stroke-width="1"/>
-      <text x="160" y="296" fill="#555" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="2">LAYER NORMALIZATION</text>
-
-      <line x1="160" y1="312" x2="160" y2="332" stroke="#2a2a2a" stroke-width="1"/>
-      <polygon points="156,328 160,336 164,328" fill="#2a2a2a"/>
-
-      <rect x="60" y="332" width="200" height="36" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="1"/>
-      <text x="160" y="350" fill="#7a7a7a" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">LANGUAGE MODEL HEAD</text>
-      <text x="160" y="362" fill="#4a4a4a" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">Linear + Softmax</text>
-
-      <line x1="160" y1="368" x2="160" y2="388" stroke="#2a2a2a" stroke-width="1"/>
-      <polygon points="156,384 160,392 164,384" fill="#2a2a2a"/>
-
-      <rect x="80" y="392" width="160" height="36" fill="none" stroke="#2e2e2e" stroke-width="1"/>
-      <text x="160" y="410" fill="#aaa" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">NEXT TOKEN</text>
-      <text x="160" y="422" fill="#aaa" font-family="DM Mono, monospace" font-size="9" text-anchor="middle" letter-spacing="1">PREDICTION</text>
-
-      <!-- Side annotations -->
-      <text x="12" y="248" fill="#333" font-family="DM Mono, monospace" font-size="8" letter-spacing="1" transform="rotate(-90,12,248)">ATTENTION</text>
-      <line x1="20" y1="218" x2="20" y2="312" stroke="#222" stroke-width="1"/>
-
-      <text x="308" y="248" fill="#333" font-family="DM Mono, monospace" font-size="8" text-anchor="middle" letter-spacing="1" transform="rotate(90,308,248)">RESIDUAL</text>
-      <line x1="300" y1="218" x2="300" y2="312" stroke="#222" stroke-width="1"/>
-    </svg>
-    <div class="hero-meta">
-      R1GPT · v0.1<br>
-      PyTorch · From Scratch<br>
-      Character-level · Open Source
-    </div>
-  </div>
-</section>
-
-<!-- MODELS -->
-<section id="models">
-  <div class="section-header">
-    <div class="section-number">§01</div>
-    <div class="section-title-block">
-      <span class="section-title">Model Family</span>
-      <span class="section-status">4 Models · 1 Released</span>
-    </div>
-  </div>
-  <div class="model-grid">
-    <div class="model-sidebar">
-      <h2>RGPT<br>Model<br>Family</h2>
-      <p>A progressive research roadmap — each model builds understanding from the previous, layer by layer.</p>
-    </div>
-    <div class="models-list">
-      <div class="model-row fade-in">
-        <div class="model-id">R1GPT</div>
-        <div class="model-desc">
-          <strong>Character-level Transformer</strong>
-          <span>Built from scratch in PyTorch — the foundation of the RGPT family. Trained on Shakespeare corpus. Demonstrates full GPT pipeline end-to-end.</span>
-        </div>
-        <div class="model-tech">
-          PyTorch<br>
-          char-level BPE<br>
-          ~10M params
-        </div>
-        <div><span class="model-badge badge-live">Released</span></div>
-      </div>
-      <div class="model-row fade-in">
-        <div class="model-id">R2GPT</div>
-        <div class="model-desc">
-          <strong>Subword Tokenization + Improved Architecture</strong>
-          <span>Scaling tokenization to BPE subwords, extended context windows, and refined training procedures.</span>
-        </div>
-        <div class="model-tech">
-          BPE Tokenizer<br>
-          Extended context<br>
-          ~50M params
-        </div>
-        <div><span class="model-badge badge-dev">In Development</span></div>
-      </div>
-      <div class="model-row fade-in">
-        <div class="model-id">R3GPT</div>
-        <div class="model-desc">
-          <strong>Instruction Tuning + RLHF Experiments</strong>
-          <span>Research into alignment techniques, instruction following, and reward modeling applied to the RGPT architecture.</span>
-        </div>
-        <div class="model-tech">
-          RLHF Research<br>
-          Instruction Tuning<br>
-          ~200M params
-        </div>
-        <div><span class="model-badge badge-planned">Planned</span></div>
-      </div>
-      <div class="model-row fade-in">
-        <div class="model-id">R∞</div>
-        <div class="model-desc">
-          <strong>Future Foundation Models</strong>
-          <span>Long-horizon research into scaling laws, efficiency, sparse architectures, and novel training paradigms beyond GPT.</span>
-        </div>
-        <div class="model-tech">
-          Research Phase<br>
-          TBD
-        </div>
-        <div><span class="model-badge badge-planned">Future</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ARCHITECTURE -->
-<section id="architecture">
-  <div class="section-header">
-    <div class="section-number">§02</div>
-    <div class="section-title-block">
-      <span class="section-title">Architecture</span>
-      <span class="section-status">GPT Forward Pass</span>
-    </div>
-  </div>
-  <div class="arch-content">
-    <div class="arch-sidebar">
-      <h2>How GPT<br>Works</h2>
-      <p>A systems-level walkthrough of the full transformer forward pass — from raw text to next-token prediction.</p>
-    </div>
-    <div class="arch-flow">
-      <div class="flow-step fade-in">
-        <span class="flow-index">01</span>
-        <span class="flow-name">Input Text</span>
-        <span class="flow-desc">raw string</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">02</span>
-        <span class="flow-name">Tokenizer</span>
-        <span class="flow-desc">char → integer</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">03</span>
-        <span class="flow-name">Token IDs</span>
-        <span class="flow-desc">sequence of ints</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">04</span>
-        <span class="flow-name">Embeddings</span>
-        <span class="flow-desc">token + positional</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">05</span>
-        <span class="flow-name">Transformer Blocks × N</span>
-        <span class="flow-desc">stacked layers</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">06</span>
-        <span class="flow-name">Multi-Head Attention</span>
-        <span class="flow-desc">Q · Kᵀ / √d</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">07</span>
-        <span class="flow-name">Feed Forward Network</span>
-        <span class="flow-desc">2× linear + ReLU</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">08</span>
-        <span class="flow-name">Layer Normalization</span>
-        <span class="flow-desc">pre-norm</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">09</span>
-        <span class="flow-name">LM Head</span>
-        <span class="flow-desc">linear projection</span>
-      </div>
-      <div class="flow-step fade-in">
-        <span class="flow-index">10</span>
-        <span class="flow-name">Next Token Prediction</span>
-        <span class="flow-desc">softmax → sample</span>
-      </div>
-    </div>
-    <div class="arch-annotations">
-      <div class="annotation fade-in">
-        <div class="annotation-label">Attention Mechanism</div>
-        <div class="annotation-content">
-          Attention(Q,K,V) = softmax(QKᵀ/√d_k)V. The scaled dot-product computes compatibility between every query and key pair. Masking ensures tokens only attend to previous positions — enabling <code>autoregressive</code> generation.
-        </div>
-      </div>
-      <div class="annotation fade-in">
-        <div class="annotation-label">Residual Connections</div>
-        <div class="annotation-content">
-          Each transformer block uses residual skip connections: <code>x = x + sublayer(x)</code>. This allows gradients to flow directly through the network depth, solving vanishing gradient problems in deep stacks.
-        </div>
-      </div>
-      <div class="annotation fade-in">
-        <div class="annotation-label">Autoregressive Generation</div>
-        <div class="annotation-content">
-          At inference, the model generates one token at a time. Each generated token is appended to the context and fed back into the model. Temperature controls the <code>sampling distribution</code> — lower = deterministic, higher = creative.
-        </div>
-      </div>
-      <div class="annotation fade-in">
-        <div class="annotation-label">Training Objective</div>
-        <div class="annotation-content">
-          Cross-entropy loss over next-token predictions. Given sequence x₁, x₂, ..., xₙ, the model maximizes <code>P(xₜ | x₁...xₜ₋₁)</code> across all positions simultaneously via teacher forcing.
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- R1GPT SHOWCASE -->
-<section id="r1gpt">
-  <div class="section-header">
-    <div class="section-number">§03</div>
-    <div class="section-title-block">
-      <span class="section-title">R1GPT</span>
-      <span class="section-status">Released · Open Source</span>
-    </div>
-  </div>
-  <div class="r1-content">
-    <div class="r1-sidebar">
-      <h2>R1GPT</h2>
-      <div class="tagline">
-        BUILT FROM<br>FIRST PRINCIPLES<br><br>
-        PYTORCH<br>
-        NO EXTERNAL LIBS<br>
-        CHAR-LEVEL
-      </div>
-    </div>
-    <div class="r1-main">
-      <div class="component-list">
-        <div class="component-item fade-in">
-          <span class="comp-idx">01</span>
-          <span class="comp-name">Character-level Tokenization</span>
-          <span class="comp-note">vocab_size = 17</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">02</span>
-          <span class="comp-name">Token + Positional Embeddings</span>
-          <span class="comp-note">n_embd = 128</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">03</span>
-          <span class="comp-name">Self-Attention (Single Head)</span>
-          <span class="comp-note">causal mask</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">04</span>
-          <span class="comp-name">Multi-Head Attention</span>
-          <span class="comp-note">n_head = 4</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">05</span>
-          <span class="comp-name">Feed Forward Network</span>
-          <span class="comp-note">4× expansion</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">06</span>
-          <span class="comp-name">Layer Normalization</span>
-          <span class="comp-note">pre-norm</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">07</span>
-          <span class="comp-name">Residual Connections</span>
-          <span class="comp-note">all blocks</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">08</span>
-          <span class="comp-name">Transformer Blocks</span>
-          <span class="comp-note">n_layer = 4</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">09</span>
-          <span class="comp-name">AdamW Optimizer</span>
-          <span class="comp-note">lr = 1e-3</span>
-        </div>
-        <div class="component-item fade-in">
-          <span class="comp-idx">10</span>
-          <span class="comp-name">Autoregressive Text Generation</span>
-          <span class="comp-note">temperature sampling</span>
-        </div>
-      </div>
-    </div>
-    <div class="r1-stats">
-      <div class="stat-block">
-        <div class="stat-label">Final Loss</div>
-        <div class="stat-value">0.077</div>
-        <div class="stat-desc">After 1000 steps</div>
-      </div>
-      <div class="stat-block">
-        <div class="stat-label">Context Length</div>
-        <div class="stat-value">64</div>
-        <div class="stat-desc">block_size tokens</div>
-      </div>
-      <div class="stat-block">
-        <div class="stat-label">Transformer Layers</div>
-        <div class="stat-value">4</div>
-        <div class="stat-desc">Stacked blocks</div>
-      </div>
-      <div class="stat-block">
-        <div class="stat-label">Attention Heads</div>
-        <div class="stat-value">4</div>
-        <div class="stat-desc">Per layer</div>
-      </div>
-      <div class="stat-block">
-        <div class="stat-label">Embedding Dim</div>
-        <div class="stat-value">128</div>
-        <div class="stat-desc">n_embd</div>
-      </div>
-      <div class="stat-block">
-        <div class="stat-label">Training Corpus</div>
-        <div class="stat-value">17</div>
-        <div class="stat-desc">chars · 3-line corpus</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- DEMO -->
-<section id="demo">
-  <div class="section-header">
-    <div class="section-number">§04</div>
-    <div class="section-title-block">
-      <span class="section-title">Interactive Demo</span>
-      <span class="section-status">R1GPT · Research Prototype</span>
-    </div>
-  </div>
-  <div class="demo-content">
-    <div class="demo-sidebar">
-      <h2>Research<br>Demo</h2>
-      <p>Explore R1GPT's character-level generation. Input a seed — the model continues autoregressively.</p>
-      <div class="demo-notice">
-        <p>LIVE · Connected to real R1GPT v1 backend. Model trains on startup then serves inference. Corpus: "hello world / i love ai / gpt is amazing"</p>
-      </div>
-    </div>
-    <div class="demo-interface">
-      <div class="demo-label">Seed Text</div>
-      <div class="demo-input-row">
-        <input type="text" class="demo-input" id="seed-input" placeholder="hello" value="hello" maxlength="100">
-        <button class="demo-run" id="generate-btn">Generate →</button>
-      </div>
-      <div class="demo-controls">
-        <div class="demo-control">
-          <span class="control-label">Temperature</span>
-          <input type="number" class="control-input" id="temp-input" value="0.8" min="0.1" max="2.0" step="0.1">
-        </div>
-        <div class="demo-control">
-          <span class="control-label">Max Tokens</span>
-          <input type="number" class="control-input" id="tokens-input" value="200" min="50" max="500" step="50">
-        </div>
-      </div>
-      <div class="demo-output-container">
-        <div class="output-header">
-          <span class="output-title">Generated Output</span>
-          <span class="output-status" id="output-status">Ready</span>
-        </div>
-        <div class="output-body" id="output-body">
-          <span class="output-placeholder">Click Generate to run inference...</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- RESEARCH NOTES -->
-<section id="research">
-  <div class="section-header">
-    <div class="section-number">§05</div>
-    <div class="section-title-block">
-      <span class="section-title">Research Notes</span>
-      <span class="section-status">Engineering Documentation</span>
-    </div>
-  </div>
-  <div class="research-content">
-    <div class="research-sidebar">
-      <h2>Engineering<br>Documentation</h2>
-      <p>Technical notes, derivations, and implementation details written during development of the RGPT architecture.</p>
-    </div>
-    <div class="notes-grid">
-      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/attention.md">
-        <div class="note-idx">NOTE · 001</div>
-        <div class="note-title">Attention Explained</div>
-        <div class="note-desc">A ground-up derivation of the attention mechanism — from intuition to the scaled dot-product formula. Includes visualization of attention weights.</div>
-        <span class="note-tag">Attention</span>
+    <div class="header-actions">
+      <a class="pill-button login-button" href="https://github.com/RGPT-Model/R1GPT" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+      <a class="pill-button start-button" href="#api-access">
+        <span>API roadmap</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M4 12h15M13 5l7 7-7 7"></path>
+        </svg>
       </a>
-      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/transformer-block.md">
-        <div class="note-idx">NOTE · 002</div>
-        <div class="note-title">Transformer Block Architecture</div>
-        <div class="note-desc">Deep dive into the pre-norm transformer block — how residual streams, layer norms, and sublayers interact to form the core building block.</div>
-        <span class="note-tag">Architecture</span>
-      </a>
-      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="training-loop">
-        <div class="note-idx">NOTE · 003</div>
-        <div class="note-title">The Training Loop</div>
-        <div class="note-desc">Implementing the full training procedure: data loading, batch sampling, forward pass, loss computation, backprop, and AdamW optimization.</div>
-        <span class="note-tag">Training</span>
-      </a>
-      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="project-goal">
-        <div class="note-idx">NOTE · 004</div>
-        <div class="note-title">Building GPT From Scratch</div>
-        <div class="note-desc">Complete walkthrough of the R1GPT codebase — every module explained, every hyperparameter justified, every architectural decision documented.</div>
-        <span class="note-tag">Implementation</span>
-      </a>
-      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="text-must-become-numbers">
-        <div class="note-idx">NOTE · 005</div>
-        <div class="note-title">Character-level Tokenization</div>
-        <div class="note-desc">Why start with characters? A study of the tradeoffs between character, subword, and word tokenization for small-scale GPT research.</div>
-        <span class="note-tag">Tokenization</span>
-      </a>
-      <a href="#" class="note-item fade-in doc-trigger" data-doc="docs/learning-notes.md" data-anchor="final-outcome-r1gpt-v1">
-        <div class="note-idx">NOTE · 006</div>
-        <div class="note-title">Scaling Laws & Next Steps</div>
-        <div class="note-desc">What the Chinchilla and GPT-3 papers tell us about data, compute, and parameter tradeoffs — and how that informs the R2GPT roadmap.</div>
-        <span class="note-tag">Research</span>
-      </a>
+      <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="primary-nav">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true" focusable="false">
+          <path d="M4 7h16M4 12h16M4 17h16"></path>
+        </svg>
+      </button>
     </div>
-  </div>
-</section>
+  </header>
 
-<!-- TIMELINE -->
-<section id="timeline">
-  <div class="section-header">
-    <div class="section-number">§06</div>
-    <div class="section-title-block">
-      <span class="section-title">Development Timeline</span>
-      <span class="section-status">Ongoing</span>
-    </div>
-  </div>
-  <div class="timeline-content">
-    <div class="timeline-sidebar">
-      <h2>Evolution<br>of RGPT</h2>
-      <p>The development path from a simple bigram model to a full GPT implementation — and beyond.</p>
-    </div>
-    <div class="timeline-main">
-      <div class="tl-item completed fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Character-level Tokenizer</span>
-        <span class="tl-note">complete</span>
-      </div>
-      <div class="tl-item completed fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Bigram Language Model</span>
-        <span class="tl-note">complete</span>
-      </div>
-      <div class="tl-item completed fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Single-Head Self-Attention</span>
-        <span class="tl-note">complete</span>
-      </div>
-      <div class="tl-item completed fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Multi-Head Attention</span>
-        <span class="tl-note">complete</span>
-      </div>
-      <div class="tl-item completed fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Transformer Block</span>
-        <span class="tl-note">complete</span>
-      </div>
-      <div class="tl-item completed fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Full GPT Architecture (R1GPT)</span>
-        <span class="tl-note">complete</span>
-      </div>
-      <div class="tl-item completed fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Training on Shakespeare Corpus</span>
-        <span class="tl-note">complete</span>
-      </div>
-      <div class="tl-item active fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">BPE Tokenizer · R2GPT Development</span>
-        <span class="tl-note">in progress</span>
-      </div>
-      <div class="tl-item future fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Instruction Tuning Research · R3GPT</span>
-        <span class="tl-note">planned</span>
-      </div>
-      <div class="tl-item future fade-in">
-        <div class="tl-dot"></div>
-        <span class="tl-name">Future Foundation Models</span>
-        <span class="tl-note">long-term</span>
-      </div>
-    </div>
-  </div>
-</section>
+  <main id="main-content">
 
-<!-- OPEN SOURCE -->
-<section id="opensource">
-  <div class="section-header">
-    <div class="section-number">§07</div>
-    <div class="section-title-block">
-      <span class="section-title">Open Source</span>
-      <span class="section-status">Public · MIT License</span>
+  <div class="landing" id="top" data-motion="full">
+    <div class="backdrop" aria-hidden="true">
+      <img class="backdrop-poster" src="resources/img/rgpt-landing-poster.webp" alt="" fetchpriority="high" decoding="async">
+      <video class="hero-video" id="hero-video" muted loop playsinline preload="none" poster="resources/img/rgpt-landing-poster.webp" aria-hidden="true" tabindex="-1">
+        <source data-src="resources/vid/RGPTlandingbg.mp4" type="video/mp4">
+      </video>
+    </div>
+
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-stage">
+          <div class="hero-content">
+            <p class="eyebrow">Large language models for every builder.</p>
+            <h1 id="hero-title"><span>Your ideas,</span><span class="headline-muted">amplified.</span></h1>
+            <p class="hero-copy">We’re building accessible LLMs and API tools for students and builders—with the goal of making it free to start and affordable to grow.</p>
+
+            <div class="prompt-area">
+              <div class="prompt-box" id="prompt-controls" role="group" aria-label="Prompt preview">
+                <button class="attach-button" id="attach-button" type="button" aria-label="Choose an attachment">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false">
+                    <path d="M12 5v14M5 12h14"></path>
+                  </svg>
+                </button>
+                <input id="attachment-input" type="file" hidden multiple>
+                <textarea class="prompt-input" id="prompt-input" rows="1" maxlength="2000" aria-label="Prompt preview; API is not live yet" placeholder="Prompt preview — API not live yet"></textarea>
+                <button class="send-button" id="send-prompt" type="button" aria-label="Submit prompt preview">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M12 20V4M5 11l7-7 7 7"></path>
+                  </svg>
+                </button>
+              </div>
+              <p class="prompt-status">Preview only · hosted API is planned, not live yet</p>
+              <p class="attachment-note" id="attachment-note" hidden></p>
+
+              <div class="action-list" id="use-cases" role="group" aria-label="Choose a prompt type">
+                <button class="action-chip" type="button" data-mode="write" data-placeholder="What would you like to write?" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="m15.5 5.5 3 3M4 20l4.2-.9L19 8.3a2.12 2.12 0 0 0-3-3L5.2 16.1 4 20Z"></path>
+                  </svg>
+                  <span>Write</span>
+                </button>
+                <button class="action-chip" type="button" data-mode="analyze" data-placeholder="What would you like to analyze?" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"></path>
+                  </svg>
+                  <span>Analyze</span>
+                </button>
+                <button class="action-chip" type="button" data-mode="create" data-placeholder="Describe what you want to create." aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <rect x="3.5" y="4" width="17" height="16" rx="2"></rect>
+                    <circle cx="8.5" cy="9" r="1.4"></circle>
+                    <path d="m5 17 4.4-4.3 3.2 2.8 2.3-2.1L19 17"></path>
+                  </svg>
+                  <span>Create</span>
+                </button>
+                <button class="action-chip" type="button" data-mode="research" data-placeholder="What would you like to research?" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <circle cx="10.8" cy="10.8" r="6.7"></circle>
+                    <path d="m16 16 4.5 4.5"></path>
+                  </svg>
+                  <span>Research</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    <div class="hero-footer" role="group" aria-label="Page details">
+      <span class="footer-mark">Scroll to explore</span>
+        <span class="footer-next">Built for student projects</span>
     </div>
   </div>
-  <div class="os-content">
-    <div class="os-block fade-in">
-      <div class="os-eyebrow">Research First</div>
-      <h2>Built in the Open.<br>Documented Thoroughly.</h2>
-      <p>Every architecture decision, training run, and failed experiment is documented. RGPT Model exists to accelerate understanding — not to gatekeep it.</p>
-      <div class="os-links">
-        <a href="https://github.com/RGPT-Model/R1GPT" class="os-link" target="_blank">
-          <span class="os-link-name">GitHub Repository</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
-        <a href="https://github.com/RGPT-Model/R1GPT/blob/main/head.py" class="os-link" target="_blank">
-          <span class="os-link-name">R1GPT Source Code</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
-        <a href="#" class="os-link doc-trigger" data-doc="docs/learning-notes.md">
-          <span class="os-link-name">Research Notes</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
-        <a href="https://github.com/RGPT-Model/R1GPT#readme" class="os-link" target="_blank">
-          <span class="os-link-name">Training Logs</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
+
+  <section class="page-section intro-section" id="workspace" aria-labelledby="workspace-title">
+    <div class="section-shell intro-grid">
+      <div>
+          <p class="section-kicker">An LLM company for builders</p>
+          <h2 class="section-title" id="workspace-title">Language models<br><em>within reach.</em></h2>
+          <p class="section-lede">RGPT is building open large language models and simple API access to help students and builders bring AI into their projects. Our goal is a free way to start and affordable access as you grow. The hosted API is planned, but not live yet.</p>
+      </div>
+      <aside class="status-card" aria-label="Current project status">
+        <div class="status-card-top"><span class="status-dot" aria-hidden="true"></span>Available today</div>
+        <h3>Open research model</h3>
+        <p>R1GPT is a local research project—not a hosted API. API keys, online inference, accounts, and published pricing are not available yet.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="page-section capabilities-section" id="capabilities" aria-labelledby="capabilities-title">
+    <div class="section-shell">
+      <div class="section-heading-row">
+        <div>
+          <p class="section-kicker">For student and indie projects</p>
+          <h2 class="section-title" id="capabilities-title">An LLM API for<br><em>real-world building.</em></h2>
+        </div>
+        <p class="section-lede">We’re shaping RGPT around practical integrations: a free way to start learning, then affordable access as projects grow. These are product goals, not live API features yet.</p>
+      </div>
+
+      <div class="capability-grid">
+        <article class="capability-card">
+          <div class="capability-card-top"><span class="capability-index">01 / INTEGRATE</span><span class="status-pill">Planned</span></div>
+          <svg class="capability-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19.5 5.5 7 7M5 27l5.8-1.3L27 9.5a4.95 4.95 0 0 0-7-7L3.8 18.7 2.5 24.5 5 27Z"/><path d="M4 22.5 9 27"/></svg>
+          <h3>Add an AI feature</h3>
+          <p>Bring language-model features into a class assignment, prototype, or side project.</p>
+        </article>
+        <article class="capability-card">
+          <div class="capability-card-top"><span class="capability-index">02 / LEARN</span><span class="status-pill">Planned</span></div>
+          <svg class="capability-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 27V15h6v12H4Zm9 0V6h6v21h-6Zm9 0V11h6v16h-6Z"/><path d="M3 29h27"/></svg>
+          <h3>Learn by building</h3>
+          <p>Explore how LLMs work, then put those skills to use with planned API tools.</p>
+        </article>
+        <article class="capability-card">
+          <div class="capability-card-top"><span class="capability-index">03 / PROTOTYPE</span><span class="status-pill">Planned</span></div>
+          <svg class="capability-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="13.5" r="9"/><path d="m20 20 8 8M9.5 14h8M13.5 10v8"/></svg>
+          <h3>Experiment on a budget</h3>
+          <p>Start with a free path to learn and test ideas without a large infrastructure bill.</p>
+        </article>
+        <article class="capability-card">
+          <div class="capability-card-top"><span class="capability-index">04 / GROW</span><span class="status-pill">Planned</span></div>
+          <svg class="capability-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="25" height="24" rx="3"/><circle cx="11" cy="12" r="2.2"/><path d="m5 24 7-7 5 4 4-4 6 7"/></svg>
+          <h3>Grow your project</h3>
+          <p>Move from a student prototype toward a product with access designed to stay affordable.</p>
+        </article>
+      </div>
+      <p class="capabilities-footnote">These are goals, not live API features. This site makes no model calls; current R1GPT use is local through the public repository.</p>
+    </div>
+  </section>
+
+  <section class="page-section process-section" id="how-it-works" aria-labelledby="process-title">
+    <div class="section-shell process-layout">
+      <div class="process-aside">
+        <p class="section-kicker">Under the hood</p>
+        <h2 class="section-title" id="process-title">From words<br>to <em>next token.</em></h2>
+        <p class="section-lede">R1GPT is an educational decoder-only Transformer. Its path from input to output is deliberately inspectable.</p>
+      </div>
+      <ol class="process-list">
+        <li class="process-step"><span class="process-number">01</span><strong>Text becomes tokens</strong><span>Custom BPE</span></li>
+        <li class="process-step"><span class="process-number">02</span><strong>Tokens gain position</strong><span>Embeddings</span></li>
+        <li class="process-step"><span class="process-number">03</span><strong>Attention reads context</strong><span>Causal attention</span></li>
+        <li class="process-step"><span class="process-number">04</span><strong>Blocks refine the signal</strong><span>Transformer × 4</span></li>
+        <li class="process-step"><span class="process-number">05</span><strong>A next token is sampled</strong><span>Autoregressive</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="page-section model-section" id="model" aria-labelledby="model-title">
+    <div class="section-shell model-layout">
+      <div>
+        <p class="section-kicker">Our current open model</p>
+        <h2 class="section-title" id="model-title">A research model.<br><em>A first step.</em></h2>
+        <p class="section-lede">R1GPT v2 is a compact PyTorch language-model experiment trained on WikiText with a custom BPE tokenizer. It predicts text continuations; it is not instruction-tuned or a general-purpose assistant.</p>
+        <div class="model-caveat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+          <span>R1GPT v2 is an educational, local model; it does not power a live hosted API.</span>
+        </div>
+        <div class="model-links">
+          <a href="research.html#architecture">Read the architecture notes ↗</a>
+          <a href="https://github.com/RGPT-Model/R1GPT#readme" target="_blank" rel="noopener noreferrer">Open the project README ↗</a>
+        </div>
+      </div>
+      <div class="model-specs" aria-label="R1GPT v2 model specifications">
+        <div class="model-spec"><strong>4</strong><span>Transformer blocks</span></div>
+        <div class="model-spec"><strong>4</strong><span>Attention heads per block</span></div>
+        <div class="model-spec"><strong>64</strong><span>Token context window</span></div>
+        <div class="model-spec"><strong>128</strong><span>Embedding dimensions</span></div>
       </div>
     </div>
-    <div class="os-block fade-in">
-      <div class="os-eyebrow">Educational Mission</div>
-      <h2>Understanding Is<br>the Product.</h2>
-      <p>RGPT Model is not a commercial product. It is a living engineering document — proof that serious AI research doesn't require a large organization, only deep curiosity and methodical execution.</p>
-      <div class="os-links">
-        <a href="#" class="os-link doc-trigger" data-doc="docs/learning-notes.md">
-          <span class="os-link-name">Learning Path: GPT from Scratch</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
-        <a href="#" class="os-link doc-trigger" data-doc="docs/transformer-block.md">
-          <span class="os-link-name">Architecture Documentation</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
-        <a href="#" class="os-link doc-trigger" data-doc="docs/attention.md">
-          <span class="os-link-name">Implementation Guide</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
-        <a href="https://github.com/RGPT-Model" class="os-link" target="_blank">
-          <span class="os-link-name">Follow Development</span>
-          <span class="os-link-arrow">↗</span>
-        </a>
+  </section>
+
+  <section class="page-section roadmap-section" id="roadmap" aria-labelledby="roadmap-title">
+    <div class="section-shell">
+      <p class="section-kicker">Honest about what’s next</p>
+      <h2 class="section-title" id="roadmap-title">A project, not a promise.</h2>
+      <p class="section-lede">The roadmap reflects the current codebase and product status. There are no launch dates or availability claims.</p>
+      <ol class="roadmap-list">
+        <li class="roadmap-row"><span>01</span><h3>Build a GPT from scratch</h3><p>Tokenizer, Transformer components, training loop, and autoregressive generation implemented in Python and PyTorch.</p><span class="roadmap-status">In repository</span></li>
+        <li class="roadmap-row"><span>02</span><h3>Train the v2 baseline</h3><p>WikiText training, validation, and a saved model checkpoint are documented in the project.</p><span class="roadmap-status">Research baseline</span></li>
+        <li class="roadmap-row"><span>03</span><h3>Build an accessible LLM API</h3><p>Plan a secure hosted API with a free way to get started and affordable access for students and builders. No release date is set.</p><span class="roadmap-status">Planned</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="page-section access-section" id="api-access" aria-labelledby="access-title">
+    <div class="section-shell access-panel">
+      <div>
+        <p class="section-kicker">API access for builders</p>
+        <h2 class="section-title" id="access-title">Our goal: start free.<br><em>Build affordably.</em></h2>
+        <p class="section-lede">We want to make LLMs accessible to students and builders, with a free way to start and low-cost access as projects grow. Hosted API access and pricing are planned, but not available yet. Explore the current open-source model under the MIT License; local setup and compute are your responsibility.</p>
+      </div>
+      <div class="access-actions">
+        <a class="pill-button start-button" href="https://github.com/RGPT-Model/R1GPT" target="_blank" rel="noopener noreferrer">Explore on GitHub ↗</a>
+        <a class="pill-button login-button" href="https://github.com/RGPT-Model/R1GPT/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Read the MIT license</a>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- DOCUMENTATION MODAL -->
-<div id="doc-modal" class="modal-overlay">
-  <div class="modal-window">
-    <div class="modal-header">
-      <span class="modal-title" id="modal-title-text">DOCUMENTATION</span>
-      <button class="modal-close" id="modal-close-btn">&times;</button>
+  <section class="page-section faq-section" id="faq" aria-labelledby="faq-title">
+    <div class="section-shell faq-layout">
+      <div>
+        <p class="section-kicker">Useful to know</p>
+        <h2 class="section-title" id="faq-title">A few clear<br><em>answers.</em></h2>
+      </div>
+      <div class="faq-list">
+        <details>
+          <summary>Can I use RGPT's API today?</summary>
+          <p>Not yet. Hosted inference and API keys are planned, but not live. You can run the research model locally using the public repository, on your own hardware.</p>
+        </details>
+        <details>
+          <summary>What can I use today?</summary>
+          <p>The repository contains a small next-token language-model experiment and a Python command-line workflow. It is not instruction-tuned, and its generated text should be treated as a research output, not a reliable assistant response.</p>
+        </details>
+        <details>
+          <summary>Will there be free or low-cost API access?</summary>
+          <p>That is our goal: a free way to get started and affordable access for students and builders. There are no published prices or plans, and hosted API access is not live yet.</p>
+        </details>
+        <details>
+          <summary>Are my prompts or attachments stored?</summary>
+          <p>This static website does not transmit prompt text or attachments. Files are only selected in your browser and are not uploaded. Avoid entering sensitive information into any unconnected prototype.</p>
+        </details>
+        <details>
+          <summary>How can I follow development or report an issue?</summary>
+          <p>Visit the public GitHub repository for source, setup instructions, and project discussions. Use GitHub Issues for bugs or suggestions.</p>
+        </details>
+      </div>
     </div>
-    <div class="modal-body" id="modal-body-content">
-      <!-- Loaded dynamically via JavaScript -->
+  </section>
+
+  <section class="page-section about-section" id="about" aria-labelledby="about-title">
+    <div class="section-shell about-grid">
+      <div>
+        <p class="section-kicker">About RGPT</p>
+        <h2 class="section-title" id="about-title">Language models<br><em>open to more people.</em></h2>
+        <p class="section-lede">RGPT is an LLM company focused on building language models and accessible tools that help students and builders turn ideas into working projects.</p>
+      </div>
+      <p class="about-note"><strong>Open foundations. Practical access.</strong> Our work starts with understanding how language models are built, then making them easier to use in real projects. The current R1GPT model is an open research prototype; hosted API access is a planned next step, not a live service.<br><br>Follow the code, read the notes, and help shape what comes next.</p>
     </div>
-  </div>
-</div>
+  </section>
+  </main>
 
-<!-- FOOTER -->
-<footer>
-  <div class="footer-brand">
-    <div class="footer-logo">RGPT/Model</div>
-    <p class="footer-tagline">Building AI Through Understanding.<br><br>An independent research initiative.</p>
-  </div>
-  <div class="footer-col">
-    <h4>Models</h4>
-    <ul>
-      <li><a href="#models">R1GPT</a></li>
-      <li><a href="#models">R2GPT</a></li>
-      <li><a href="#models">R3GPT</a></li>
-      <li><a href="#timeline">Roadmap</a></li>
-    </ul>
-  </div>
-  <div class="footer-col">
-    <h4>Research</h4>
-    <ul>
-      <li><a href="#" class="doc-trigger" data-doc="docs/transformer-block.md">Architecture Notes</a></li>
-      <li><a href="https://github.com/RGPT-Model/R1GPT#readme" target="_blank">Training Logs</a></li>
-      <li><a href="#" class="doc-trigger" data-doc="docs/learning-notes.md">Documentation</a></li>
-      <li><a href="#" class="doc-trigger" data-doc="docs/learning-notes.md">Learning Path</a></li>
-    </ul>
-  </div>
-  <div class="footer-col">
-    <h4>Open Source</h4>
-    <ul>
-      <li><a href="https://github.com/RGPT-Model" target="_blank">GitHub ↗</a></li>
-      <li><a href="https://github.com/RGPT-Model/R1GPT" target="_blank">Source Code</a></li>
-      <li><a href="https://github.com/RGPT-Model/R1GPT/blob/main/LICENSE" target="_blank">MIT License</a></li>
-      <li><a href="https://github.com/RGPT-Model/R1GPT" target="_blank">Contribute</a></li>
-    </ul>
-  </div>
-</footer>
-<div class="footer-bottom">
-  <span class="footer-copy">© 2024 RGPT Model · Dev: <a href="https://github.com/rohansachinpatil" target="_blank" class="footer-dev-link">Rohan Patil</a></span>
-  <span class="footer-version">R1GPT v0.1 · PyTorch · Open Source</span>
-</div>
+  <footer class="site-footer">
+    <div class="section-shell">
+      <div class="footer-main">
+        <div>
+          <a class="footer-brand-lockup" href="#top" aria-label="RGPT, back to top">
+            <img src="resources/img/rgptlogo.png" alt="" width="42" height="42" loading="lazy" decoding="async">
+            <span>RGPT</span>
+          </a>
+          <p class="footer-brand-copy">Building accessible LLMs and API tools for students and builders.</p>
+        </div>
+        <nav class="footer-col" aria-label="Explore RGPT">
+          <h2>Explore</h2>
+          <ul><li><a href="#workspace">Our mission</a></li><li><a href="#capabilities">Use cases</a></li><li><a href="#api-access">API access</a></li><li><a href="#faq">FAQ</a></li></ul>
+        </nav>
+        <nav class="footer-col" aria-label="Model and research">
+          <h2>Research</h2>
+          <ul><li><a href="#model">R1GPT model</a></li><li><a href="research.html#architecture">Architecture notes</a></li><li><a href="https://github.com/RGPT-Model/R1GPT#readme" target="_blank" rel="noopener noreferrer">README ↗</a></li><li><a href="https://github.com/RGPT-Model/R1GPT/issues" target="_blank" rel="noopener noreferrer">Report an issue ↗</a></li></ul>
+        </nav>
+        <nav class="footer-col" aria-label="Open source links">
+          <h2>Open source</h2>
+          <ul><li><a href="https://github.com/RGPT-Model/R1GPT" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a></li><li><a href="https://github.com/RGPT-Model/R1GPT/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License ↗</a></li><li><a href="#about">About the project</a></li></ul>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 RGPT · LLM research and API development</span>
+        <a class="back-to-top" href="#top">Back to top ↑</a>
+      </div>
+    </div>
+  </footer>
 
-<script>
-// ---- FADE IN OBSERVER ----
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      setTimeout(() => entry.target.classList.add('visible'), 80);
-      observer.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.1 });
-document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  <div class="toast" id="app-message" role="status" aria-live="polite" hidden></div>
 
-// ---- REAL R1GPT BACKEND DEMO ----
-const API = 'http://localhost:5000';
-let generating = false;
+  <script>
+    (() => {
+      const landing = document.querySelector('.landing');
+      const video = document.getElementById('hero-video');
+      const source = video.querySelector('source');
+      const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let sourceAttached = false;
 
-async function streamOutput(text) {
-  const outputBody = document.getElementById('output-body');
-  const outputStatus = document.getElementById('output-status');
-  outputBody.innerHTML = '';
-  const cursor = document.createElement('span');
-  cursor.className = 'cursor';
-  outputBody.appendChild(cursor);
-
-  let i = 0;
-  const chars = text.split('');
-  return new Promise(resolve => {
-    const interval = setInterval(() => {
-      if (i >= chars.length) {
-        clearInterval(interval);
-        cursor.remove();
-        outputStatus.textContent = `Done · ${chars.length} chars`;
-        resolve();
-        return;
+      function attachVideoSource() {
+        if (sourceAttached || motionPreference.matches) return;
+        source.src = source.dataset.src;
+        sourceAttached = true;
+        video.preload = 'metadata';
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.autoplay = true;
+        video.load();
+        video.play().catch(() => {
+          landing.dataset.video = 'fallback';
+        });
       }
-      const batch = Math.floor(Math.random() * 3) + 1;
-      for (let j = 0; j < batch && i < chars.length; j++) {
-        outputBody.insertBefore(document.createTextNode(chars[i]), cursor);
-        i++;
-      }
-      outputStatus.textContent = `Generating... ${i}/${chars.length}`;
-    }, 16);
-  });
-}
 
-document.getElementById('generate-btn').addEventListener('click', async () => {
-  if (generating) return;
-  generating = true;
-
-  const seed       = document.getElementById('seed-input').value || 'hello';
-  const temp       = parseFloat(document.getElementById('temp-input').value) || 0.8;
-  const maxTokens  = parseInt(document.getElementById('tokens-input').value) || 100;
-  const outputBody = document.getElementById('output-body');
-  const outputStatus = document.getElementById('output-status');
-  const btn = document.getElementById('generate-btn');
-
-  btn.textContent = 'Generating...';
-  btn.style.opacity = '0.6';
-  outputStatus.textContent = 'Calling R1GPT...';
-  outputBody.innerHTML = '<span class="output-placeholder">Connecting to R1GPT v1 backend...</span>';
-
-  try {
-    const res = await fetch(`${API}/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seed, max_tokens: maxTokens, temperature: temp })
-    });
-
-    if (!res.ok) throw new Error(`Server error: ${res.status}`);
-
-    const data = await res.json();
-    outputStatus.textContent = 'Streaming...';
-    await streamOutput(data.output);
-
-  } catch (err) {
-    outputBody.innerHTML = `<span style="color:#6a6a6a">⚠ Could not reach R1GPT backend at ${API}.<br><br>Start the server with:<br><span style="color:#b0b0b0">python server.py</span><br><br>Error: ${err.message}</span>`;
-    outputStatus.textContent = 'Offline';
-  }
-
-  btn.textContent = 'Generate →';
-  btn.style.opacity = '1';
-  generating = false;
-});
-
-document.getElementById('seed-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('generate-btn').click();
-});
-
-// ---- CHECK SERVER ON LOAD ----
-(async () => {
-  try {
-    const res = await fetch(`${API}/status`);
-    if (res.ok) {
-      const d = await res.json();
-      document.getElementById('output-status').textContent =
-        `Online · loss ${d.final_loss} · vocab ${d.vocab_size} chars`;
-      document.querySelector('.demo-notice p').textContent =
-        `LIVE · R1GPT v1 connected. Corpus: "${d.corpus}". Final loss: ${d.final_loss}`;
-    }
-  } catch (_) {
-    document.getElementById('output-status').textContent = 'Server offline — run python server.py';
-  }
-})();
-
-// ---- DOCUMENTATION MODAL LOGIC ----
-function parseMarkdown(md) {
-  // Escape HTML to prevent rendering issues and protect code snippets
-  let html = md
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  // Code blocks
-  html = html.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
-    return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
-  });
-
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // Math equations block
-  html = html.replace(/\$\$([\s\S]*?)\$\$/g, '<div class="math-block">$1</div>');
-  html = html.replace(/\$([^$]+)\$/g, '<span class="math-inline">$1</span>');
-
-  // Blockquotes
-  html = html.replace(/^\s*>\s+(.*)$/gm, '<blockquote>$1</blockquote>');
-
-  // Headers with clean auto-generated IDs
-  html = html.replace(/^\s*(#+)\s+(.*)$/gm, (match, hashes, title) => {
-    const level = hashes.length;
-    const cleanTitle = title.replace(/<[^>]*>/g, '').trim();
-    const id = cleanTitle.toLowerCase()
-      .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '') // strip emojis
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '');
-    return `<h${level} id="${id}">${title}</h${level}>`;
-  });
-
-  // Lists
-  html = html.replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
-  html = html.replace(/<\/ul>\s*<ul>/g, ''); // merge lists
-
-  // Bold / Italics
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-  // Tables
-  let lines = html.split('\n');
-  let finalHtml = '';
-  let inTable = false;
-  let tempTable = [];
-  for (let line of lines) {
-    if (line.trim().startsWith('|')) {
-      if (line.includes('---')) continue;
-      let cells = line.split('|').slice(1, -1).map(c => c.trim());
-      tempTable.push(cells);
-      inTable = true;
-    } else {
-      if (inTable && tempTable.length > 0) {
-        let header = tempTable[0];
-        let rows = tempTable.slice(1);
-        let tableHtml = `<table><thead><tr>${header.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-        finalHtml += tableHtml + '\n';
-        tempTable = [];
-        inTable = false;
-      }
-      finalHtml += line + '\n';
-    }
-  }
-
-  // Wrap sections in clean paragraphs
-  let blocks = finalHtml.split(/\n\s*\n/);
-  return blocks.map(block => {
-    let trimmed = block.trim();
-    if (!trimmed) return '';
-    if (trimmed.startsWith('<h') || trimmed.startsWith('<pre') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<blockquote>')) {
-      return trimmed;
-    }
-    return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
-  }).join('\n');
-}
-
-const modal = document.getElementById('doc-modal');
-const modalBody = document.getElementById('modal-body-content');
-const modalTitle = document.getElementById('modal-title-text');
-const modalClose = document.getElementById('modal-close-btn');
-
-async function openDoc(path, anchor = null) {
-  modalTitle.textContent = 'LOADING...';
-  modalBody.innerHTML = '<span class="output-placeholder">Fetching document...</span>';
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
-
-  try {
-    const response = await fetch(path);
-    if (!response.ok) throw new Error(`Failed to load ${path}`);
-    const text = await response.text();
-    
-    // Parse name from filename for title
-    const filename = path.split('/').pop().replace('.md', '').replace('-', ' ');
-    modalTitle.textContent = filename.toUpperCase();
-
-    // Render HTML content
-    modalBody.innerHTML = parseMarkdown(text);
-
-    // Scroll to anchor if provided
-    if (anchor) {
-      setTimeout(() => {
-        const el = document.getElementById(anchor);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      function applyMotionPreference() {
+        if (motionPreference.matches) {
+          landing.dataset.motion = 'reduced';
+          video.autoplay = false;
+          video.pause();
+          landing.dataset.video = 'fallback';
+          return;
         }
-      }, 100);
-    } else {
-      modalBody.scrollTop = 0;
-    }
-  } catch (err) {
-    modalBody.innerHTML = `<span style="color:#6a6a6a">⚠ Error loading document: ${err.message}</span>`;
-    modalTitle.textContent = 'ERROR';
-  }
-}
+        landing.dataset.motion = 'full';
+        attachVideoSource();
+      }
 
-function closeDoc() {
-  modal.classList.remove('active');
-  document.body.style.overflow = '';
-}
+      video.addEventListener('playing', () => {
+        landing.dataset.video = 'playing';
+      });
+      video.addEventListener('error', () => {
+        landing.dataset.video = 'fallback';
+      });
+      motionPreference.addEventListener?.('change', applyMotionPreference);
+      applyMotionPreference();
 
-// Bind clicks to triggers
-document.addEventListener('click', e => {
-  const trigger = e.target.closest('.doc-trigger');
-  if (trigger) {
-    e.preventDefault();
-    const docPath = trigger.getAttribute('data-doc');
-    const anchor = trigger.getAttribute('data-anchor');
-    openDoc(docPath, anchor);
-  }
-});
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          video.pause();
+        } else if (!motionPreference.matches && sourceAttached) {
+          video.play().catch(() => {
+            landing.dataset.video = 'fallback';
+          });
+        }
+      });
 
-modalClose.addEventListener('click', closeDoc);
-modal.addEventListener('click', e => {
-  if (e.target === modal) closeDoc();
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeDoc();
-});
-</script>
+      const message = document.getElementById('app-message');
+      let messageTimeout;
 
+      function announce(text) {
+        window.clearTimeout(messageTimeout);
+        message.textContent = text;
+        message.hidden = false;
+        requestAnimationFrame(() => message.classList.add('is-visible'));
+        messageTimeout = window.setTimeout(() => {
+          message.classList.remove('is-visible');
+          window.setTimeout(() => { message.hidden = true; }, 180);
+        }, 4200);
+      }
+
+      const promptInput = document.getElementById('prompt-input');
+      const attachmentInput = document.getElementById('attachment-input');
+      const attachmentNote = document.getElementById('attachment-note');
+
+      document.getElementById('attach-button').addEventListener('click', () => attachmentInput.click());
+      attachmentInput.addEventListener('change', () => {
+        const files = Array.from(attachmentInput.files || []);
+        if (!files.length) {
+          attachmentNote.hidden = true;
+          attachmentNote.textContent = '';
+          return;
+        }
+        const names = files.map((file) => file.name).join(', ');
+        attachmentNote.textContent = `${files.length} file${files.length === 1 ? '' : 's'} selected: ${names}. Files stay in this browser and aren’t uploaded.`;
+        attachmentNote.hidden = false;
+      });
+
+      function submitPrompt() {
+        if (!promptInput.value.trim()) {
+          promptInput.focus();
+          announce('Type a prompt before sending.');
+          return;
+        }
+        const hasAttachments = attachmentInput.files && attachmentInput.files.length > 0;
+        announce(hasAttachments
+          ? 'This preview doesn’t send prompts or files. The hosted API is not live yet; explore the local model in the project README.'
+          : 'This preview isn’t connected to an API. Explore the local model in the project README.');
+      }
+
+      document.getElementById('send-prompt').addEventListener('click', submitPrompt);
+
+      promptInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          submitPrompt();
+        }
+      });
+
+      promptInput.addEventListener('input', () => {
+        promptInput.style.height = 'auto';
+        promptInput.style.height = `${Math.min(promptInput.scrollHeight, 132)}px`;
+      });
+
+      document.querySelectorAll('.action-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.action-chip').forEach((other) => {
+            other.setAttribute('aria-pressed', String(other === chip));
+          });
+          promptInput.placeholder = chip.dataset.placeholder;
+          promptInput.focus({ preventScroll: true });
+        });
+      });
+
+      const menuToggle = document.getElementById('menu-toggle');
+      const primaryNav = document.getElementById('primary-nav');
+      const siteHeader = document.getElementById('site-header');
+
+      function updateHeaderSurface() {
+        siteHeader.classList.toggle('is-scrolled', window.scrollY > 24);
+      }
+
+      updateHeaderSurface();
+      window.addEventListener('scroll', updateHeaderSurface, { passive: true });
+
+      menuToggle.addEventListener('click', () => {
+        const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
+        menuToggle.setAttribute('aria-expanded', String(!isOpen));
+        menuToggle.setAttribute('aria-label', isOpen ? 'Open navigation menu' : 'Close navigation menu');
+        primaryNav.classList.toggle('is-open', !isOpen);
+      });
+
+      primaryNav.addEventListener('click', (event) => {
+        if (event.target.closest('a, button')) {
+          menuToggle.setAttribute('aria-expanded', 'false');
+          menuToggle.setAttribute('aria-label', 'Open navigation menu');
+          primaryNav.classList.remove('is-open');
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && primaryNav.classList.contains('is-open')) {
+          menuToggle.setAttribute('aria-expanded', 'false');
+          menuToggle.setAttribute('aria-label', 'Open navigation menu');
+          primaryNav.classList.remove('is-open');
+          menuToggle.focus();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
